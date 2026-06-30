@@ -1,0 +1,29 @@
+{
+  "config": {
+    "property_name": "Sample Apartments",
+    "as_of_date": "2026-01-31",
+    "uw_market_rents": {
+      "1 BD / 1 BA": 1250,
+      "2 BD / 2 BA": 1500
+    },
+    "reno_tiers": {"VA1": "Renovated"},
+    "bed_total_max_rent": "N/A"
+  },
+  "units": [
+    {"unit_id": "101", "unit_type": "A1", "floor_plan": "1 BD / 1 BA", "renovated": "Yes", "reno_type": "Full",
+     "tenant_name": "Jane Doe", "sqft": 720, "beds": 1, "baths": 1, "occupancy": "Occupied",
+     "market_rent": 1300, "contract_rent": 1180, "other_income": 25,
+     "move_in": "2025-09-15", "lease_start": "2025-09-15", "lease_end": "2026-09-14"},
+    {"unit_id": "102", "unit_type": "A1", "floor_plan": "1 BD / 1 BA",
+     "tenant_name": "VACANT", "sqft": 720, "beds": 1, "baths": 1, "occupancy": "Vacant",
+     "market_rent": 999, "contract_rent": 0, "other_income": 0},
+    {"unit_id": "201", "unit_type": "B2", "floor_plan": "2 BD / 2 BA", "renovated": "Yes", "reno_type": "Full",
+     "tenant_name": "John Smith", "sqft": 1050, "beds": 2, "baths": 2, "occupancy": "NTV",
+     "market_rent": 1700, "contract_rent": 1620, "other_income": 40,
+     "move_in": "2024-02-01", "lease_start": "2024-02-01", "lease_end": "2026-01-31"},
+    {"unit_id": "202", "unit_type": "B2", "floor_plan": "2 BD / 2 BA",
+     "tenant_name": "Maria Garcia", "sqft": 1050, "beds": 2, "baths": 2, "occupancy": "Occupied",
+     "market_rent": 1700, "contract_rent": 1555, "other_income": 35,
+     "move_in": "2025-12-20", "lease_start": "2025-12-20", "lease_end": "2026-12-19"}
+  ]
+}
