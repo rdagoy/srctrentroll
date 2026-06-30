@@ -13,6 +13,7 @@ cell-for-cell:
 | **Recent Leases** | floor plan | trailing 6/4/3/2/1-month average lease rates and lease counts |
 | **Unit Mix based on # of Beds** | bed count | same columns as Unit Mix, grouped by bedroom count |
 | **Pres. Rent Roll** | unit | every unit with status, rents, dates, and loss-to-lease (LTL) |
+| **OneLineRR** | unit | full one-line dump of source data + a user-editable "Checking" table (unit-type → floor-plan / BD / BA / Renovated mapping) with live COUNTIFS/SUMIFS aggregates |
 
 ## How the process works
 

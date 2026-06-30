@@ -517,10 +517,189 @@ def _build_recent_leases(wb, units, config, totals):
 
 
 # ---------------------------------------------------------------------------
+# ---------------------------------------------------------------------------
+# OneLineRR  (Checking table + one-line-per-unit data region)
+# ---------------------------------------------------------------------------
+YELLOW = PatternFill("solid", fgColor="FFFFFF00")
+OLR_SM = Font(size=10)
+OLR_SMB = Font(bold=True, size=10)
+# Statuses the Checking formulas treat as occupied (matches the reference tool).
+_OCC_STATUSES = ("Occ", "Admin", "Down", "Model")
+
+# Checking-table header: (col letter, title, halign)
+OLR_CHECK_HDR = [
+    ("C", "Floor Plan", "left"), ("D", "Unit Type", "left"), ("E", "BD", "center"),
+    ("F", "BA", "center"), ("G", "Renovated", "center"), ("H", "Units", "right"),
+    ("I", "# Occ", "right"), ("J", "#Vac", "right"), ("K", "Avg SF", "right"),
+    ("L", "Total SF", "right"), ("M", "Occ SF", "right"), ("N", "Vac SF", "right"),
+    ("O", "Market Rent ", "right"), ("P", "Rent", "right"), ("Q", "Other Income", "right"),
+    ("R", "Concessions", "right"), ("S", "Emp Discounts", "right"),
+]
+# Data-region header: (col letter, title)
+OLR_DATA_HDR = [
+    ("A", "Property"), ("B", "#"), ("C", "Occupancy"), ("D", "Floorplan"),
+    ("E", "Bd"), ("F", "Ba"), ("G", "Renovated"), ("H", "Unit #"),
+    ("I", "Unit Type"), ("J", "Unit Sq Ft"), ("K", "Resident/Tenant Name"),
+    ("L", "Market Rent"), ("M", "Rent"), ("N", "Move in"), ("O", "Lease Start"),
+    ("P", "Lease End"), ("Q", "Move Out"), ("R", "Other Income"),
+    ("S", "Concessions"), ("T", "Employee Discounts"),
+    ("V", "Unit Type (Manual)"), ("W", "Unit Type (Manual) - Updated"),
+    ("Y", "RENT"), ("AB", "Pet Fee"), ("AC", "Laundry Income"),
+    ("AM", "Model"), ("AS", "Employee Rent Credit"),
+]
+OLR_WIDTHS = {"A": 21.6, "B": 4.1, "C": 24.0, "E": 12.6, "F": 4.6, "G": 9.4,
+              "H": 9.6, "J": 11.6, "K": 18.6, "L": 17.6, "M": 11.1, "N": 11.6,
+              "O": 11.6, "P": 11.4, "Q": 14.1, "R": 11.4, "S": 11.6, "T": 12.1,
+              "V": 24.0, "Y": 12.1}
+
+
+def _olr_unit_types(units):
+    """Distinct unit types -> checking-table rows, sorted beds/baths/plan/reno.
+
+    The Checking 'Floor Plan' label appends ', R' for renovated types so each
+    row is unique (classic and reno of the same plan stay distinct)."""
+    seen = {}
+    for u in units:
+        key = u.unit_type or u.floor_plan
+        if key not in seen:
+            reno = bool(u.renovated)
+            label = u.floor_plan + (", R" if reno else "")
+            seen[key] = {
+                "code": key, "label": label, "beds": u.beds, "baths": u.baths,
+                "reno": "Yes" if reno else "No",
+                "sort": (u.beds or 0, u.baths or 0, u.floor_plan, reno),
+            }
+    return sorted(seen.values(), key=lambda d: d["sort"])
+
+
+def _build_onelinerr(wb, units, config):
+    ws = wb.create_sheet("OneLineRR")
+    ws.sheet_view.showGridLines = False
+    _set_widths(ws, OLR_WIDTHS)
+
+    types = _olr_unit_types(units)
+    n_types = len(types)
+
+    # --- layout anchors -----------------------------------------------------
+    CS = 5                       # first checking-table data row
+    CE = CS + n_types - 1
+    TOTALS = CE + 1
+    PCT = TOTALS + 1
+    NOTES = PCT + 4
+    PROP_ROW = NOTES + 7
+    DATE_ROW = PROP_ROW + 1
+    GROUP_HDR = max(30, DATE_ROW + 2)
+    DATA_HDR = GROUP_HDR + 1
+    DS = DATA_HDR + 1            # first data row
+    DE = DS + len(units) - 1
+
+    # --- Checking table -----------------------------------------------------
+    _c(ws, "C3", "Checking:", font=OLR_SMB)
+    for letter, title, ha in OLR_CHECK_HDR:
+        _c(ws, f"{letter}4", title, font=OLR_SMB, halign=ha)
+
+    for i, t in enumerate(types):
+        r = CS + i
+        _c(ws, f"C{r}", t["label"], font=OLR_SM, fill=YELLOW, halign="left")
+        _c(ws, f"D{r}", t["code"], font=OLR_SM, halign="left")
+        _c(ws, f"E{r}", t["beds"], font=OLR_SM, fill=YELLOW, halign="center")
+        _c(ws, f"F{r}", t["baths"], font=OLR_SM, fill=YELLOW, nf="0.0", halign="center")
+        _c(ws, f"G{r}", t["reno"], font=OLR_SM, fill=YELLOW, halign="center")
+        occ_count = "+".join(f'COUNTIFS($D${DS}:$D${DE},$C{r},$C${DS}:$C${DE},"{s}")'
+                             for s in _OCC_STATUSES)
+        occ_sf = "+".join(f'SUMIFS($J${DS}:$J${DE},$D${DS}:$D${DE},$C{r},$C${DS}:$C${DE},"{s}")'
+                          for s in _OCC_STATUSES)
+        fm = {
+            "H": f"=COUNTIFS($D${DS}:$D${DE},$C{r})",
+            "I": f"={occ_count}",
+            "J": f'=COUNTIFS($D${DS}:$D${DE},$C{r},$C${DS}:$C${DE},"Vac")',
+            "K": f'=IFERROR(AVERAGEIFS($J${DS}:$J${DE},$D${DS}:$D${DE},$C{r}),"n/a")',
+            "L": f"=SUMIFS($J${DS}:$J${DE},$D${DS}:$D${DE},$C{r})",
+            "M": f"={occ_sf}",
+            "N": f'=SUMIFS($J${DS}:$J${DE},$D${DS}:$D${DE},$C{r},$C${DS}:$C${DE},"Vac")',
+            "O": f"=SUMIFS($L${DS}:$L${DE},$D${DS}:$D${DE},$C{r})",
+            "P": f"=SUMIFS($M${DS}:$M${DE},$D${DS}:$D${DE},$C{r})",
+            "Q": f"=SUMIFS($R${DS}:$R${DE},$D${DS}:$D${DE},$C{r})",
+            "R": f"=SUMIFS($S${DS}:$S${DE},$D${DS}:$D${DE},$C{r})",
+            "S": f"=SUMIFS($T${DS}:$T${DE},$D${DS}:$D${DE},$C{r})",
+        }
+        for col, formula in fm.items():
+            _c(ws, f"{col}{r}", formula, font=OLR_SM, nf=NF_INT, halign="right")
+
+    # Totals row
+    _c(ws, f"C{TOTALS}", "Totals", font=OLR_SMB, halign="left")
+    for col in ("H", "I", "J", "L", "M", "N", "O", "P", "Q", "R", "S"):
+        _c(ws, f"{col}{TOTALS}", f"=SUM({col}{CS}:{col}{CE})", font=OLR_SMB, nf=NF_INT, halign="right")
+    # % row
+    _c(ws, f"C{PCT}", "%", font=OLR_SMB, halign="left")
+    _c(ws, f"I{PCT}", f"=I{TOTALS}/$H${TOTALS}", font=OLR_SMB, nf=NF_PCT1, halign="right")
+    _c(ws, f"J{PCT}", f"=J{TOTALS}/$H${TOTALS}", font=OLR_SMB, nf=NF_PCT1, halign="right")
+    _c(ws, f"M{PCT}", f'=IFERROR(M{TOTALS}/$L${TOTALS},"n/a")', font=OLR_SMB, nf=NF_PCT1, halign="right")
+    _c(ws, f"N{PCT}", f'=IFERROR(N{TOTALS}/$L${TOTALS},"n/a")', font=OLR_SMB, nf=NF_PCT1, halign="right")
+
+    # Notes
+    _c(ws, f"C{NOTES}", "Notes:", font=OLR_SM)
+    notes = [
+        "1. Vacant units market rent is the per-unit market/asking rent from the source.",
+        "2. BD/BA count is from the Unit Type mapping above (edit the yellow cells to adjust).",
+    ]
+    if any(u.occupancy == "Model" for u in units):
+        notes.append("3. Model units carry market rent as a placeholder; excluded from revenue.")
+    for k, txt in enumerate(notes, 1):
+        _c(ws, f"C{NOTES + k}", txt, font=OLR_SM)
+
+    # Property name / RR date
+    _c(ws, f"C{PROP_ROW}", "Property Name", font=OLR_SM)
+    _c(ws, f"D{PROP_ROW}", config.property_name, font=OLR_SM)
+    _c(ws, f"C{DATE_ROW}", "Rent Roll Date", font=OLR_SM)
+    _c(ws, f"D{DATE_ROW}", config.as_of_date, font=OLR_SMB, nf=NF_DATE2, halign="left")
+
+    # --- Data region --------------------------------------------------------
+    _c(ws, f"Y{GROUP_HDR}", "Rent", font=OLR_SMB)
+    _c(ws, f"AB{GROUP_HDR}", "Other Income", font=OLR_SMB)
+    _c(ws, f"AM{GROUP_HDR}", "Concessions", font=OLR_SMB)
+    _c(ws, f"AS{GROUP_HDR}", "Employee Discounts", font=OLR_SMB)
+    for letter, title in OLR_DATA_HDR:
+        _c(ws, f"{letter}{DATA_HDR}", title, font=OLR_SMB)
+
+    for idx, u in enumerate(units):
+        r = DS + idx
+        _c(ws, f"A{r}", f"=$D${PROP_ROW}", font=OLR_SM, halign="left")
+        _c(ws, f"B{r}", 1 if idx == 0 else f"=B{r-1}+1", font=OLR_SM, halign="left")
+        _c(ws, f"C{r}", f'=IF(K{r}="Vacant","Vac",IF(K{r}="Model","Model",'
+                        f'IF(K{r}="Admin","Admin",IF(K{r}="Down","Down","Occ"))))', font=OLR_SM, halign="left")
+        _c(ws, f"D{r}", f"=INDEX($C${CS}:$C${CE},MATCH(I{r},$D${CS}:$D${CE},0))", font=OLR_SM, halign="left")
+        _c(ws, f"E{r}", f"=INDEX($E${CS}:$E${CE},MATCH(D{r},$C${CS}:$C${CE},0))", font=OLR_SM, halign="left")
+        _c(ws, f"F{r}", f"=INDEX($F${CS}:$F${CE},MATCH(D{r},$C${CS}:$C${CE},0))", font=OLR_SM, halign="left")
+        _c(ws, f"G{r}", f"=INDEX($G${CS}:$G${CE},MATCH(D{r},$C${CS}:$C${CE},0))", font=OLR_SM, halign="left")
+        _c(ws, f"H{r}", u.unit_id, font=OLR_SM, halign="left")
+        _c(ws, f"I{r}", u.unit_type, font=OLR_SM, halign="left")
+        _c(ws, f"J{r}", u.sqft, font=OLR_SM, nf='_(* #,##0_);_(* \\(#,##0\\);_(* "-"??_);_(@_)')
+        _c(ws, f"K{r}", u.tenant_name, font=OLR_SM, halign="left")
+        _c(ws, f"L{r}", _money(u.market_rent), font=OLR_SM, nf="#,##0.00", halign="right")
+        _c(ws, f"M{r}", f"=Y{r}", font=OLR_SM, nf="#,##0.00", halign="right")
+        if u.move_in:
+            _c(ws, f"N{r}", u.move_in, font=OLR_SM, nf=NF_DATE, halign="right")
+        if u.lease_start:
+            _c(ws, f"O{r}", u.lease_start, font=OLR_SM, nf=NF_DATE, halign="right")
+        if u.lease_end:
+            _c(ws, f"P{r}", u.lease_end, font=OLR_SM, nf=NF_DATE, halign="right")
+        if getattr(u, "move_out", None):
+            _c(ws, f"Q{r}", u.move_out, font=OLR_SM, nf=NF_DATE, halign="right")
+        _c(ws, f"R{r}", f"=SUM(AB{r}:AK{r})", font=OLR_SM, nf="#,##0.00", halign="right")
+        _c(ws, f"S{r}", f"=SUM(AM{r}:AQ{r})", font=OLR_SM, nf="#,##0.00", halign="right")
+        _c(ws, f"T{r}", f"=SUM(AS{r}:AW{r})", font=OLR_SM, nf="#,##0.00", halign="right")
+        _c(ws, f"Y{r}", _money(u.contract_rent), font=OLR_SM, nf="#,##0.00", halign="right")
+
+    ws.freeze_panes = f"A{DS}"
+    return ws
+
+
+# ---------------------------------------------------------------------------
 # Public entry point
 # ---------------------------------------------------------------------------
 def build_exhibits(units: List[Unit], config: RollConfig, out_path: str) -> str:
-    """Build the 4-tab exhibits workbook and save it to ``out_path``."""
+    """Build the 5-tab exhibits workbook and save it to ``out_path``."""
     if not units:
         raise ValueError("No units to process.")
 
@@ -535,6 +714,7 @@ def build_exhibits(units: List[Unit], config: RollConfig, out_path: str) -> str:
     _build_recent_leases(wb, units, config, totals)
     _build_bed_mix(wb, units, config, totals)
     _build_pres_rent_roll(wb, units, config, totals)
+    _build_onelinerr(wb, units, config)
 
     wb.save(out_path)
     return out_path

@@ -8,9 +8,10 @@ Source layout (sheet 'Report1'):
     rows 8-391 : unit rows
     rows 392+  : subtotals / summary groups
 
-Floor-plan codes decode as  stjt<beds><letter><baths>[R]:
-    2A1 -> 2 BD / 1 BA - A,  2B1 -> 2 BD / 1 BA - B,  2B2 -> 2 BD / 2 BA - B,
-    2C1 -> 2 BD / 1 BA - C,  2C2 -> 2 BD / 2 BA - C.   Trailing 'R' = renovated.
+Floor-plan decode comes from the OneLineRR "Checking" mapping the analyst
+maintains (letter -> beds, trailing digit -> baths); 'R' suffix = renovated:
+    2A1 -> 1 BD / 1 BA      2B1 -> 2 BD / 1 BA      2B2 -> 2 BD / 1.5 BA
+    2C1 -> 3 BD / 1 BA - A  2C2 -> 3 BD / 1.5 BA
 
 Notes / assumptions (flagged to the analyst):
   * Source has no lease-sign date, so lease_start uses the Move-In date as a
@@ -32,19 +33,26 @@ from rent_roll_processor import Unit, RollConfig, build_exhibits  # noqa: E402
 SRC = sys.argv[1] if len(sys.argv) > 1 else None
 OUT = sys.argv[2] if len(sys.argv) > 2 else "Rent_Roll_Exhibits_Station_J_Town_05.22.26.xlsx"
 
-CODE_RE = re.compile(r"^stjt(\d)([A-Z])(\d)$", re.IGNORECASE)
+# Analyst-maintained unit-type -> (floor plan, beds, baths) decode.
+# Keyed by the base code (stjt prefix + trailing 'R' stripped).
+# This mirrors the OneLineRR "Checking" table the user fills in by hand.
+STJT_MAP = {
+    "2A1": ("1 BD / 1 BA", 1, 1),
+    "2B1": ("2 BD / 1 BA", 2, 1),
+    "2B2": ("2 BD / 1.5 BA", 2, 1.5),
+    "2C1": ("3 BD / 1 BA - A", 3, 1),
+    "2C2": ("3 BD / 1.5 BA", 3, 1.5),
+}
 
 
 def decode(code):
-    """stjt2B1R -> (floor_plan, beds, baths, renovated)."""
-    code = code.strip()
-    reno = code.upper().endswith("R")
-    base = code[:-1] if reno else code
-    m = CODE_RE.match(base)
-    if not m:
-        return code, None, None, reno
-    beds, letter, baths = int(m.group(1)), m.group(2), int(m.group(3))
-    return f"{beds} BD / {baths} BA - {letter}", beds, baths, reno
+    """stjt2B1R -> (floor_plan, beds, baths, renovated, raw_unit_type)."""
+    raw = code.strip()
+    reno = raw.upper().endswith("R")
+    base = raw[:-1] if reno else raw          # drop reno suffix
+    key = base.upper().replace("STJT", "").strip()
+    fp, beds, baths = STJT_MAP.get(key, (raw, None, None))
+    return fp, beds, baths, reno, raw
 
 
 def clean_name(raw):
@@ -67,7 +75,7 @@ def load(path):
         if not is_unit_row(a):
             continue
         code = str(ws.cell(r, 2).value or "").strip()
-        fp, beds, baths, reno = decode(code)
+        fp, beds, baths, reno, raw_code = decode(code)
         name_raw = clean_name(ws.cell(r, 4).value)
         nl = (name_raw or "").lower()
         if nl == "vacant":
@@ -80,7 +88,7 @@ def load(path):
         move_in = ws.cell(r, 9).value
         units.append(Unit.from_dict({
             "unit_id": a.strip(),
-            "unit_type": code.replace("stjt", ""),
+            "unit_type": raw_code,   # keep full source code (e.g. 'stjt2B1R')
             "floor_plan": fp,
             "sqft": ws.cell(r, 3).value,
             "beds": beds,

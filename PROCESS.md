@@ -1,6 +1,6 @@
 # Rent Roll Processing — Standard Operating Procedure
 
-**Goal:** you send a raw source rent roll; you get back a standardized 4-tab
+**Goal:** you send a raw source rent roll; you get back a standardized 5-tab
 **Rent Roll Exhibits** workbook ready for underwriting.
 
 This SOP describes how a new deal is run end to end, the data contract between
@@ -58,7 +58,13 @@ The result is a list of normalized units + a `RollConfig`.
 
 ### Step 2 — Build exhibits *(deterministic)*
 `build_exhibits(units, config, out_path)` computes every summary and writes the
-styled 4-tab workbook. Same input → identical output, every time.
+styled 5-tab workbook (Unit Mix & RR Summary, Recent Leases, Unit Mix by
+Beds, Pres. Rent Roll, and OneLineRR). Same input → identical output, every time.
+
+The **OneLineRR** tab is a live working sheet: a full one-line-per-unit dump of
+the source plus a yellow-highlighted **Checking** table that maps each unit
+type to its floor plan / BD / BA / Renovated flag. Those mapping cells are
+user-editable — edit them and the derived columns and aggregates recalculate.
 
 ```bash
 python -m rent_roll_processor.cli --deal deal.json -o "Rent_Roll_Exhibits_<Deal>_<Date>.xlsx"
@@ -85,7 +91,7 @@ model units, large negative LTL, floor plans missing a UW market rent).
 | Recent-lease windows | trailing **calendar months** (180→6, 120→4, 90→3, 60→2, 30→1). Average of contract rent for occupied units whose lease start falls in the window; `n/a` when none. If the source has no lease-sign date, use the **Move-In date** as the lease-start placeholder. |
 | Loss to Lease | `UW market rent − contract rent`; `0` for vacant (no contract). LTL % = LTL ÷ UW market. |
 | Annualized | Market/In-Place/Other income × 12. |
-| Output | values only — no live formulas (matches the reference exhibits). |
+| Output | the four summary tabs are values-only (match the reference exhibits); the OneLineRR tab is formula-driven so the Checking mapping recalculates live. |
 
 ---
 
@@ -137,7 +143,7 @@ example.
 - [ ] **Occupancy %** is reasonable (typically 90–98% for stabilized assets;
       flag < 88%).
 - [ ] **No blank Market Rent** cells — every unit needs one (col U).
-- [ ] **Model units** show `Model` in col Q and count as occupied.
+- [ ] **Model units** show `Model` in col Q (not counted as occupied by default).
 - [ ] **Vacant units** show `0` contract rent and `0` LTL.
 - [ ] **Recent Leases** rolling periods look sane (more activity in the longer
       windows). All-`n/a` usually means lease start dates are missing.
