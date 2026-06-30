@@ -75,14 +75,14 @@ model units, large negative LTL, floor plans missing a UW market rent).
 
 | Rule | Behavior |
 |------|----------|
-| Occupancy | `Occ` and `Model` count as **occupied**. `NTV` and `VL` normalize to occupied. Only `Vacant` is vacant. |
+| Occupancy | `Occ` counts as occupied; `NTV` and `VL` normalize to occupied. `Vacant` is vacant. **Model** units are **not** occupied by default (a non-revenue unit) — set `model_occupied=True` to fold them into occupied. |
 | Occupied SF | sum of SF over occupied units. |
 | Mkt Rent (group) | sum of per-unit market rent over **all** units. |
 | Avg Mkt/Unit | mkt rent ÷ **total** units. Avg Mkt/SF = mkt rent ÷ total SF. |
 | Cont Rent (group) | sum of contract rent (vacants = 0). |
 | Avg Cont/Unit | cont rent ÷ **occupied** units. Avg Cont/SF = cont rent ÷ **occupied** SF. |
 | Max Rent | highest **contract** rent among occupied units in the group. |
-| Recent-lease windows | trailing **calendar months** (180→6, 120→4, 90→3, 60→2, 30→1). Average of contract rent for occupied units whose lease start falls in the window; `n/a` when none. |
+| Recent-lease windows | trailing **calendar months** (180→6, 120→4, 90→3, 60→2, 30→1). Average of contract rent for occupied units whose lease start falls in the window; `n/a` when none. If the source has no lease-sign date, use the **Move-In date** as the lease-start placeholder. |
 | Loss to Lease | `UW market rent − contract rent`; `0` for vacant (no contract). LTL % = LTL ÷ UW market. |
 | Annualized | Market/In-Place/Other income × 12. |
 | Output | values only — no live formulas (matches the reference exhibits). |
@@ -154,7 +154,7 @@ example.
 | Unit count off | Source had subtotal/group rows mistaken for units — re-parse skipping them. |
 | All contract rents 0 | The in-place/lease-rent column wasn't found — point to the right source column. |
 | Occupancy looks low | NTV/VL not recognized — they should map to occupied; extend `status_map` if the source uses an unusual label. |
-| Recent Leases all `n/a` | Lease start dates missing — supply them, or use "lease end − 12 months" as a proxy. |
+| Recent Leases all `n/a` | Lease start dates missing — Move-In is used as the placeholder; long-tenured renewals won't appear as recent. |
 | LTL columns blank | No UW market rent given for that floor plan — supply `uw_market_rents`. |
 | A unit wrongly shows as model | Tell me the unit # and its real tenant/status. |
 

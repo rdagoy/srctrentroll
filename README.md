@@ -67,9 +67,10 @@ python -m tests.validate_heritage /path/to/Rent_Roll_Exhibits_Heritage_Hill...xl
 
 ## Key business rules (reverse-engineered from the reference)
 
-- **Occupancy:** `Occ` and `Model` count as **occupied**; `NTV`
-  (notice-to-vacate) and `VL` (vacant-leased) also normalize to occupied.
-  Only true `Vacant` is vacant.
+- **Occupancy:** `Occ` counts as occupied; `NTV` (notice-to-vacate) and `VL`
+  (vacant-leased) also normalize to occupied. `Vacant` is vacant. **Model**
+  units are *not* occupied by default (`RollConfig.model_occupied=True` folds
+  them in, as the Heritage reference does).
 - **Max Rent** (Unit Mix) = the highest *in-place* (contract) rent among
   occupied units in the group.
 - **Recent-lease windows** are *calendar months* (1/2/3/4/6), not raw day

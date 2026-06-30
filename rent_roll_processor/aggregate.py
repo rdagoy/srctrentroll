@@ -20,9 +20,17 @@ from dataclasses import dataclass
 from datetime import date
 from typing import List, Optional, Dict, Any
 
-from .schema import Unit, RollConfig
+from .schema import Unit, RollConfig, OCC, MODEL
 
 NA = "n/a"
+
+
+def is_occupied(unit: Unit, model_occupied: bool = False) -> bool:
+    """Occupancy used by every summary.  Model units count as occupied only
+    when ``model_occupied`` is True (see RollConfig.model_occupied)."""
+    if unit.occupancy == MODEL:
+        return model_occupied
+    return unit.occupancy == OCC
 # Rolling lease windows.  Each "N days" column is really an N/30 calendar-month
 # look-back (this matches the reference exhibits, e.g. a lease 61 days out still
 # lands in the "60 Days" column because it is within 2 calendar months).
@@ -110,8 +118,8 @@ class Totals:
     ltl_pct_total: Optional[float]
 
 
-def _summarize_group(key: str, units: List[Unit]) -> GroupSummary:
-    occ = [u for u in units if u.is_occupied]
+def _summarize_group(key: str, units: List[Unit], model_occupied: bool = False) -> GroupSummary:
+    occ = [u for u in units if is_occupied(u, model_occupied)]
     tot_units = len(units)
     occ_units = len(occ)
     sqft = sum(u.sqft for u in units)
@@ -153,18 +161,19 @@ def _group_units(units: List[Unit], key_fn) -> "list[tuple[str, list[Unit]]]":
     return items
 
 
-def unit_mix(units: List[Unit]) -> List[GroupSummary]:
+def unit_mix(units: List[Unit], model_occupied: bool = False) -> List[GroupSummary]:
     """Per floor-plan summary rows, sorted by beds/baths/plan."""
-    return [_summarize_group(str(k), g) for k, g in _group_units(units, lambda u: u.floor_plan)]
+    return [_summarize_group(str(k), g, model_occupied)
+            for k, g in _group_units(units, lambda u: u.floor_plan)]
 
 
-def bed_mix(units: List[Unit]) -> List[GroupSummary]:
+def bed_mix(units: List[Unit], model_occupied: bool = False) -> List[GroupSummary]:
     """Per bed-count summary rows."""
     out = []
     for k, g in _group_units(units, lambda u: u.beds):
         beds = g[0].beds
         label = int(beds) if float(beds).is_integer() else beds
-        out.append(_summarize_group(str(label), g))
+        out.append(_summarize_group(str(label), g, model_occupied))
     return out
 
 
@@ -177,10 +186,10 @@ def _window_stat(occ_units: List[Unit], as_of: date, days: int) -> Dict[str, Any
     return {"avg": sum(u.contract_rent for u in sel) / len(sel), "count": len(sel)}
 
 
-def recent_leases(units: List[Unit], as_of: date) -> List[RecentLeaseRow]:
+def recent_leases(units: List[Unit], as_of: date, model_occupied: bool = False) -> List[RecentLeaseRow]:
     rows = []
     for k, g in _group_units(units, lambda u: u.floor_plan):
-        occ = [u for u in g if u.is_occupied]
+        occ = [u for u in g if is_occupied(u, model_occupied)]
         tot_units = len(g)
         occ_units = len(occ)
         sqft = sum(u.sqft for u in g)
@@ -206,8 +215,9 @@ def recent_leases(units: List[Unit], as_of: date) -> List[RecentLeaseRow]:
 
 def compute_totals(units: List[Unit], config: RollConfig,
                    mix: Optional[List[GroupSummary]] = None) -> Totals:
-    mix = mix if mix is not None else unit_mix(units)
-    occ = [u for u in units if u.is_occupied]
+    model_occupied = config.model_occupied
+    mix = mix if mix is not None else unit_mix(units, model_occupied)
+    occ = [u for u in units if is_occupied(u, model_occupied)]
     tot_units = len(units)
     occ_units = len(occ)
     sqft = sum(u.sqft for u in units)

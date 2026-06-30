@@ -386,7 +386,7 @@ def _build_mix_sheet(wb, sheet_name, title, units, config, totals, groups,
 
 
 def _build_unit_mix(wb, units, config, totals):
-    groups = agg.unit_mix(units)
+    groups = agg.unit_mix(units, config.model_occupied)
     return _build_mix_sheet(
         wb, "Unit Mix & RR Summary", "UNIT MIX & RENT ROLL SUMMARY",
         units, config, totals, groups,
@@ -396,7 +396,7 @@ def _build_unit_mix(wb, units, config, totals):
 
 
 def _build_bed_mix(wb, units, config, totals):
-    groups = agg.bed_mix(units)
+    groups = agg.bed_mix(units, config.model_occupied)
     widths = dict(MIX_WIDTHS); widths["D"] = 40.0; widths["E"] = 18.0
     key_values = []
     for g in groups:
@@ -470,7 +470,7 @@ def _build_recent_leases(wb, units, config, totals):
         nf = '#\\ "Days"' if text and text.endswith("Days") else None
         _c(ws, f"{letter}6", text, font=HDR_FONT, halign=ha, valign="center", nf=nf)
 
-    rows = agg.recent_leases(units, config.as_of_date)
+    rows = agg.recent_leases(units, config.as_of_date, config.model_occupied)
     r = 7
     for row in rows:
         _c(ws, f"D{r}", config.property_name, font=BODY_FONT, halign="left")
@@ -524,7 +524,7 @@ def build_exhibits(units: List[Unit], config: RollConfig, out_path: str) -> str:
     if not units:
         raise ValueError("No units to process.")
 
-    mix = agg.unit_mix(units)
+    mix = agg.unit_mix(units, config.model_occupied)
     totals = agg.compute_totals(units, config, mix=mix)
 
     wb = openpyxl.Workbook()

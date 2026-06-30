@@ -21,7 +21,8 @@ from typing import Optional, Dict, Any
 # --- Occupancy normalization -------------------------------------------------
 # Raw status strings from PM exports get mapped to one of three buckets.
 # Per underwriting convention (SOP v3): NTV (notice-to-vacate) and VL
-# (vacant-leased) both count as OCCUPIED.  Model units count as occupied too.
+# (vacant-leased) both count as OCCUPIED.  Model units are non-revenue and are
+# NOT occupied by default (configurable via RollConfig.model_occupied).
 OCC = "Occ"
 VAC = "Vac"
 MODEL = "Model"
@@ -134,12 +135,16 @@ class Unit:
     # --- Derived helpers -----------------------------------------------------
     @property
     def is_occupied(self) -> bool:
-        """Occ and Model both count as occupied for underwriting."""
-        return self.occupancy in (OCC, MODEL)
+        """Simple per-unit helper (Occ only). Whether *model* units count as
+        occupied is decided at aggregation time by RollConfig.model_occupied,
+        so summaries use aggregate.is_occupied(unit, model_occupied) instead."""
+        return self.occupancy == OCC
 
     @property
     def is_vacant(self) -> bool:
-        return not self.is_occupied
+        """True for vacant units (used only for the Pres. RR tenant label).
+        Model units are not 'vacant' here — they carry their own MODEL label."""
+        return self.occupancy == VAC
 
     @classmethod
     def from_dict(cls, d: Dict[str, Any], status_map: Optional[Dict[str, str]] = None) -> "Unit":
@@ -188,6 +193,10 @@ class RollConfig:
         status_map:    optional override of the raw->Occ/Vac/Model mapping.
         bed_total_max_rent: what to put in the bed-mix Max Rent total cell.
                        The reference file uses the literal string "N/A".
+        model_occupied: whether model units count as occupied.  Defaults to
+                       False (the standard underwriting view: a model is a
+                       non-revenue unit).  Set True to match exhibits that
+                       fold the model into the occupied count.
     """
     property_name: str
     as_of_date: date
@@ -195,6 +204,7 @@ class RollConfig:
     reno_tiers: Dict[str, str] = field(default_factory=dict)
     status_map: Optional[Dict[str, str]] = None
     bed_total_max_rent: Any = "N/A"
+    model_occupied: bool = False
 
     def __post_init__(self):
         self.as_of_date = _coerce_date(self.as_of_date) or self.as_of_date

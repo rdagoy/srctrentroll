@@ -13,10 +13,10 @@ Floor-plan codes decode as  stjt<beds><letter><baths>[R]:
     2C1 -> 2 BD / 1 BA - C,  2C2 -> 2 BD / 2 BA - C.   Trailing 'R' = renovated.
 
 Notes / assumptions (flagged to the analyst):
-  * Source has no lease-sign date.  Per the SOP fallback, lease_start is
-    proxied as Lease Expiration - 12 months (only counts toward Recent Leases
-    when that lands on/before the as-of date).
+  * Source has no lease-sign date, so lease_start uses the Move-In date as a
+    placeholder (drives the Recent Leases windows).
   * Source has no other-income column, so Other Income = 0.
+  * Model units are NOT counted as occupied (matches the source summary).
   * Underwriting market rents intentionally left blank (LTL columns blank).
 """
 import os
@@ -33,15 +33,6 @@ SRC = sys.argv[1] if len(sys.argv) > 1 else None
 OUT = sys.argv[2] if len(sys.argv) > 2 else "Rent_Roll_Exhibits_Station_J_Town_05.22.26.xlsx"
 
 CODE_RE = re.compile(r"^stjt(\d)([A-Z])(\d)$", re.IGNORECASE)
-
-
-def minus_12_months(d):
-    if d is None:
-        return None
-    try:
-        return d.replace(year=d.year - 1)
-    except ValueError:  # Feb 29 -> Feb 28
-        return d.replace(year=d.year - 1, day=28)
 
 
 def decode(code):
@@ -86,6 +77,7 @@ def load(path):
         else:
             occ, tenant = "Occupied", name_raw
         lease_exp = ws.cell(r, 10).value
+        move_in = ws.cell(r, 9).value
         units.append(Unit.from_dict({
             "unit_id": a.strip(),
             "unit_type": code.replace("stjt", ""),
@@ -100,8 +92,8 @@ def load(path):
             "market_rent": ws.cell(r, 5).value,
             "contract_rent": ws.cell(r, 6).value,
             "other_income": 0,
-            "move_in": ws.cell(r, 9).value,
-            "lease_start": minus_12_months(lease_exp),   # proxy (see module docstring)
+            "move_in": move_in,
+            "lease_start": move_in,   # placeholder: no lease-sign date in source
             "lease_end": lease_exp,
         }))
     return units
@@ -119,10 +111,12 @@ def main():
     )
     build_exhibits(units, config, OUT)
 
-    occ = sum(1 for u in units if u.is_occupied)
-    vac = sum(1 for u in units if u.is_vacant)
+    from rent_roll_processor.aggregate import is_occupied
+    occ = sum(1 for u in units if is_occupied(u, config.model_occupied))
+    vac = sum(1 for u in units if u.occupancy == "Vac")
+    model = sum(1 for u in units if u.occupancy == "Model")
     print(f"Wrote {OUT}")
-    print(f"  units={len(units)}  occupied={occ}  vacant={vac}  occ%={occ/len(units):.2%}")
+    print(f"  units={len(units)}  occupied={occ}  vacant={vac}  model={model}  occ%={occ/len(units):.2%}")
     from collections import Counter
     fp = Counter(u.floor_plan for u in units)
     for k in sorted(fp):
