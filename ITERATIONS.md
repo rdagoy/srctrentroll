@@ -121,6 +121,16 @@ count against the source's own total** (e.g. "Total Rentable Units").
     used by the CLI when `--out` is omitted and by the intake scripts)*
     - e.g. `Birgo RR Exhibits - Station J Townv07.01.26.xlsx`
 
+18. **OneLineRR: itemized Other Income** — the Other Income section (columns
+    right of Rent, from AB) now renders **one column per other-income line item**
+    with per-unit values; column R = SUM over those columns (Checking "Other
+    Income" aggregates it). Falls back to a single "Other Income" column when a
+    source has no per-item breakdown. Concessions get their own column just after.
+    *(schema `Unit.other_income_items`; intake populates it; workbook
+    `_build_onelinerr` places columns dynamically)*
+    - *Maven effect:* 8 columns (Building Protection, Pet, Pest, Trash, Water,
+      WiFi, MTM Fee, RUBS); detail totals 6,361 = source other income.
+
 ---
 
 ## Open / future tuning items

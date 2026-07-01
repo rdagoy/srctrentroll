@@ -140,6 +140,10 @@ class Unit:
     lease_start: Optional[date] = None    # AA
     lease_end: Optional[date] = None      # AB
 
+    # Optional per-line-item breakdown of other income ({label: amount}); the
+    # OneLineRR tab renders one column per label. `other_income` stays the total.
+    other_income_items: Dict[str, float] = field(default_factory=dict)
+
     # --- Derived helpers -----------------------------------------------------
     @property
     def is_occupied(self) -> bool:

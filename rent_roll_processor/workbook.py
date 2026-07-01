@@ -537,7 +537,9 @@ OLR_CHECK_HDR = [
     ("O", "Market Rent ", "right"), ("P", "Rent", "right"), ("Q", "Other Income", "right"),
     ("R", "Concessions", "right"), ("S", "Emp Discounts", "right"),
 ]
-# Data-region header: (col letter, title)
+# Data-region header: (col letter, title).  The Other Income / Concession /
+# Employee-Discount detail columns (from AB onward) are generated dynamically
+# per deal from each unit's line items, so they are not listed here.
 OLR_DATA_HDR = [
     ("A", "Property"), ("B", "#"), ("C", "Occupancy"), ("D", "Floorplan"),
     ("E", "Bd"), ("F", "Ba"), ("G", "Renovated"), ("H", "Unit #"),
@@ -546,9 +548,9 @@ OLR_DATA_HDR = [
     ("P", "Lease End"), ("Q", "Move Out"), ("R", "Other Income"),
     ("S", "Concessions"), ("T", "Employee Discounts"),
     ("V", "Unit Type (Manual)"), ("W", "Unit Type (Manual) - Updated"),
-    ("Y", "RENT"), ("AB", "Pet Fee"), ("AC", "Laundry Income"),
-    ("AM", "Model"), ("AS", "Employee Rent Credit"),
+    ("Y", "RENT"),
 ]
+OLR_OI_START = 28   # column AB: first Other Income detail column
 OLR_WIDTHS = {"A": 21.6, "B": 4.1, "C": 24.0, "E": 12.6, "F": 4.6, "G": 9.4,
               "H": 9.6, "J": 11.6, "K": 18.6, "L": 17.6, "M": 11.1, "N": 11.6,
               "O": 11.6, "P": 11.4, "Q": 14.1, "R": 11.4, "S": 11.6, "T": 12.1,
@@ -657,12 +659,39 @@ def _build_onelinerr(wb, units, config):
     _c(ws, f"D{DATE_ROW}", config.as_of_date, font=OLR_SMB, nf=NF_DATE2, halign="left")
 
     # --- Data region --------------------------------------------------------
+    # Dynamic Other Income detail columns: one per distinct line item across
+    # units (falls back to a single "Other Income" column if no per-item
+    # breakdown was provided but a total exists).
+    oi_names = []
+    for u in units:
+        for name in (u.other_income_items or {}):
+            if name not in oi_names:
+                oi_names.append(name)
+    if not oi_names and any(u.other_income for u in units):
+        oi_names = ["Other Income"]
+    oi_cols = {name: OLR_OI_START + i for i, name in enumerate(oi_names)}
+
+    has_conc = any(u.concession for u in units)
+    conc_col = (max(oi_cols.values()) + 2) if oi_cols else OLR_OI_START
+    L = get_column_letter
+
     _c(ws, f"Y{GROUP_HDR}", "Rent", font=OLR_SMB)
-    _c(ws, f"AB{GROUP_HDR}", "Other Income", font=OLR_SMB)
-    _c(ws, f"AM{GROUP_HDR}", "Concessions", font=OLR_SMB)
-    _c(ws, f"AS{GROUP_HDR}", "Employee Discounts", font=OLR_SMB)
+    if oi_cols:
+        _c(ws, f"{L(OLR_OI_START)}{GROUP_HDR}", "Other Income", font=OLR_SMB)
+    if has_conc:
+        _c(ws, f"{L(conc_col)}{GROUP_HDR}", "Concessions", font=OLR_SMB)
     for letter, title in OLR_DATA_HDR:
         _c(ws, f"{letter}{DATA_HDR}", title, font=OLR_SMB)
+    for name, col in oi_cols.items():
+        _c(ws, f"{L(col)}{DATA_HDR}", name, font=OLR_SMB)
+        ws.column_dimensions[L(col)].width = 13.0
+    if has_conc:
+        _c(ws, f"{L(conc_col)}{DATA_HDR}", "Concession", font=OLR_SMB)
+        ws.column_dimensions[L(conc_col)].width = 13.0
+
+    oi_first = L(OLR_OI_START)
+    oi_last = L(max(oi_cols.values())) if oi_cols else oi_first
+    conc_letter = L(conc_col)
 
     for idx, u in enumerate(units):
         r = DS + idx
@@ -689,13 +718,20 @@ def _build_onelinerr(wb, units, config):
             _c(ws, f"P{r}", u.lease_end, font=OLR_SM, nf=NF_DATE, halign="right")
         if getattr(u, "move_out", None):
             _c(ws, f"Q{r}", u.move_out, font=OLR_SM, nf=NF_DATE, halign="right")
-        _c(ws, f"R{r}", f"=SUM(AB{r}:AK{r})", font=OLR_SM, nf="#,##0.00", halign="right")
-        _c(ws, f"S{r}", f"=SUM(AM{r}:AQ{r})", font=OLR_SM, nf="#,##0.00", halign="right")
-        _c(ws, f"T{r}", f"=SUM(AS{r}:AW{r})", font=OLR_SM, nf="#,##0.00", halign="right")
+        # Other Income totals over the dynamic detail columns.
+        r_formula = f"=SUM({oi_first}{r}:{oi_last}{r})" if oi_cols else 0
+        _c(ws, f"R{r}", r_formula, font=OLR_SM, nf="#,##0.00", halign="right")
+        _c(ws, f"S{r}", f"={conc_letter}{r}" if has_conc else 0, font=OLR_SM, nf="#,##0.00", halign="right")
+        _c(ws, f"T{r}", 0, font=OLR_SM, nf="#,##0.00", halign="right")
         _c(ws, f"Y{r}", _money(u.contract_rent), font=OLR_SM, nf="#,##0.00", halign="right")
-        # Non-revenue concession offset lands in the 'Model' concession column (AM).
-        if u.concession:
-            _c(ws, f"AM{r}", _money(u.concession), font=OLR_SM, nf="#,##0.00", halign="right")
+        # Per-line-item Other Income values.
+        items = u.other_income_items or {}
+        for name, col in oi_cols.items():
+            val = items.get(name) if items else (u.other_income if name == "Other Income" else 0)
+            if val:
+                _c(ws, f"{L(col)}{r}", _money(val), font=OLR_SM, nf="#,##0.00", halign="right")
+        if has_conc and u.concession:
+            _c(ws, f"{conc_letter}{r}", _money(u.concession), font=OLR_SM, nf="#,##0.00", halign="right")
 
     ws.freeze_panes = f"A{DS}"
     return ws

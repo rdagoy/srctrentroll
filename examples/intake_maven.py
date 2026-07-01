@@ -78,7 +78,8 @@ def load(path):
             units.append(Unit.from_dict(c["fields"] | {
                 "contract_rent": c["rent"],
                 "concession": c["conc"],
-                "other_income": c["other"],
+                "other_income": sum(c["oi_items"].values()),
+                "other_income_items": dict(c["oi_items"]),
             }))
 
     for r in range(8, ws.max_row + 1):
@@ -92,7 +93,8 @@ def load(path):
             occ = occ_from_status(status)
             fp, beds, baths, reno, raw = decode(ws.cell(r, 2).value)
             name = str(ws.cell(r, 5).value or "").strip()
-            cur = {"rent": 0.0, "conc": 0.0, "other": 0.0, "fields": {
+            from collections import defaultdict
+            cur = {"rent": 0.0, "conc": 0.0, "oi_items": defaultdict(float), "fields": {
                 "unit_id": a.strip(),
                 "unit_type": raw,
                 "floor_plan": fp,
@@ -111,14 +113,15 @@ def load(path):
         # Accumulate charge-code line (present on main row and sub-rows).
         code = ws.cell(r, 12).value
         amt = ws.cell(r, 15).value
-        if cur and code and code != "Charge Total:" and isinstance(amt, (int, float)):
+        if (cur and code and str(code).strip() not in ("Charge Total:", "-")
+                and isinstance(amt, (int, float))):
             c = str(code)
             if c.startswith("Rent-"):
                 cur["rent"] += amt
             elif c.startswith("Concession"):
                 cur["conc"] += amt
             else:
-                cur["other"] += amt
+                cur["oi_items"][c] += amt   # keep each other-income line item
     finalize(cur)
     return units
 
