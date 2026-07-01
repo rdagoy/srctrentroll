@@ -37,6 +37,10 @@ SRC = sys.argv[1] if len(sys.argv) > 1 else None
 OUT = sys.argv[2] if len(sys.argv) > 2 else output_filename(PROPERTY)
 
 TYPE_RE = re.compile(r"^(\d+)x(\d+)")
+# A unit header row is identified by its Unit Type cell (e.g. "1x1B_C",
+# "2x1A_C") — robust to the two Bldg-Unit id formats in this report
+# ("800-1A" and "CL - 806-1").  Charge sub-rows have a blank Unit Type.
+TYPE_HDR_RE = re.compile(r"^\s*\d+x\d+")
 
 
 def decode(code):
@@ -58,8 +62,9 @@ def occ_from_status(status):
     return "Occupied"          # occupied / notice (NTV) both -> occupied
 
 
-def is_unit_row(a):
-    return a and isinstance(a, str) and re.match(r"^\d+-", a.strip())
+def is_unit_row(unit_type_val):
+    """True for a unit header row, keyed off the Unit Type cell (col B)."""
+    return bool(unit_type_val and TYPE_HDR_RE.match(str(unit_type_val)))
 
 
 def load(path):
@@ -81,7 +86,7 @@ def load(path):
         # Stop at the 'Future Resident Details' section (empty here).
         if isinstance(a, str) and a.strip() == "Future Resident Details":
             break
-        if is_unit_row(a):
+        if is_unit_row(ws.cell(r, 2).value):
             finalize(cur)
             status = ws.cell(r, 4).value
             occ = occ_from_status(status)

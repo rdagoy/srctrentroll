@@ -12,6 +12,14 @@ future model tuning has the full context. Each decision notes *what* changed,
 |---|------|---------------|-------|--------|
 | — | Heritage Hill Estates | OneSite-style (reference exhibits) | 03/16/26 | Reverse-engineered → regression fixture; engine reproduces it value-for-value |
 | 1 | Station J Town | Yardi (`Report1` sheet) | 05/22/26 | 384 units, 94.27% occ; ties to source summary (Mkt 430,031 / Actual 385,359 / SF 365,100) |
+| 2 | Maven @ 806 | 29SC / RealPage (`Detailed` charge-ledger) | 05/15/26 | 51 units, 82.35% occ; ties to source totals (SF 38,376 / scheduled charges 58,021.30 = contract 52,035.45 + other 6,361 + conc −374.70) |
+
+### Lesson (Maven): unit-count sanity check
+Maven's Bldg-Unit ids came in **two formats** — `800-1A` and `CL - 806-1`. The
+first intake keyed unit rows off the id regex `^\d+-`, silently skipping the 37
+`CL - ` units → 14 instead of 51. Fix: detect unit header rows by the **Unit
+Type** column (`\dx\d`), not the id format. **Always cross-check the output unit
+count against the source's own total** (e.g. "Total Rentable Units").
 
 ---
 
