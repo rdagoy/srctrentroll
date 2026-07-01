@@ -44,25 +44,32 @@ def _apply_nonrev(units: List[Unit], config: RollConfig) -> None:
         u.concession = -(u.market_rent or 0)  # offsetting negative concession
 
 
+def _comp_key(unit: Unit):
+    """Comp bucket for the vacant-market calc: floor plan AND renovation status,
+    so a classic vacant is priced off classic comps and a renovated vacant off
+    renovated comps (a floor plan's classic and reno rents differ)."""
+    return (unit.floor_plan, bool(unit.renovated))
+
+
 def _apply_vacant_market(units: List[Unit]) -> None:
-    # Build per-floor-plan comps from truly occupied units only.
+    # Build comps (floor plan + reno status) from truly occupied units only.
     from collections import defaultdict
-    by_plan = defaultdict(list)
+    by_key = defaultdict(list)
     for u in units:
         if u.occupancy == OCC:
-            by_plan[u.floor_plan].append(u)
+            by_key[_comp_key(u)].append(u)
 
     for u in units:
         if u.occupancy != VAC:
             continue
-        comps = by_plan.get(u.floor_plan, [])
+        comps = by_key.get(_comp_key(u), [])
         leased = [c for c in comps if c.lease_start is not None and c.contract_rent]
         if leased:
             # in-place rent of the most-recently-started lease (ties -> higher rent)
             latest = max(leased, key=lambda c: (c.lease_start, c.contract_rent))
             u.market_rent = latest.contract_rent
         else:
-            # fallback: the plan's max in-place rent among occupied units
+            # fallback: the bucket's max in-place rent among occupied units
             rents = [c.contract_rent for c in comps if c.contract_rent]
             if rents:
                 u.market_rent = max(rents)

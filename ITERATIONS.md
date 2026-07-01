@@ -57,12 +57,11 @@ future model tuning has the full context. Each decision notes *what* changed,
    where `mm.dd.yy` is today's date, not the rent-roll date. *(intake_station_jtown.py)*
 
 10. **Vacant market rent derived** — each vacant unit's market rent is set to the
-    in-place (contract) rent of the same floor plan's most-recently-started
-    lease; fallback is that plan's max in-place rent; if no occupied comp exists
-    the source value is kept. Toggle `RollConfig.derive_vacant_market` (default
-    True). *(derive.py `_apply_vacant_market`)*
-    - *Station J Town effect:* e.g. all vacant 2 BD / 1 BA units → 1120 (in-place
-      rent of the latest lease, unit H16 @ 2026-05-16).
+    in-place (contract) rent of the most-recently-started lease of the same
+    **floor plan AND renovation status** (classic vs renovated are priced
+    separately — see fix in #13); fallback is that bucket's max in-place rent; if
+    no occupied comp exists the source value is kept. Toggle
+    `RollConfig.derive_vacant_market` (default True). *(derive.py `_apply_vacant_market`)*
 
 11. **Non-revenue units expanded** — a unit whose tenant name is
     `admin`/`down`/`super`/`model` (or whose status already maps to one) is
@@ -86,6 +85,13 @@ future model tuning has the full context. Each decision notes *what* changed,
     *(aggregate.py `in_place_rent`)*
     - *Station J Town effect:* 2 BD / 1 BA Cont Rent 207,560 (gross) → 206,425
       (net); the model's 1,135 nets out.
+
+13. **Vacant-market fix: reno-aware comps** — the vacant-market calc (#10)
+    originally grouped comps by merged floor plan, so a *classic* vacant could
+    pick up a *renovated* unit's rent (and vice-versa). Now comps are bucketed by
+    `(floor_plan, renovated)`. *(derive.py `_comp_key`)*
+    - *Verified:* all 21 Station J Town vacants match the per-unit-type rule;
+      e.g. stjt2B1 (classic) 1120 → **965**, stjt2B2R (reno) → **1190**.
 
 ---
 
