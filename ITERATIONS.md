@@ -77,6 +77,16 @@ future model tuning has the full context. Each decision notes *what* changed,
     before aggregation, so they flow to every tab. The Heritage fixture sets both
     toggles False to stay a frozen reference.
 
+12. **In-place rent netted by concession** — the summary tabs' in-place/contract
+    rent (Unit Mix Cont Rent + averages, Recent Leases in-place + windows,
+    In-Place Annualized, totals) now use `contract + concession` so a
+    non-revenue unit nets to 0 and real concessions reduce in-place rent. The
+    Pres. Rent Roll still shows gross contract and concession separately. Toggle
+    `RollConfig.net_concession` (default True; Heritage sets False).
+    *(aggregate.py `in_place_rent`)*
+    - *Station J Town effect:* 2 BD / 1 BA Cont Rent 207,560 (gross) → 206,425
+      (net); the model's 1,135 nets out.
+
 ---
 
 ## Open / future tuning items

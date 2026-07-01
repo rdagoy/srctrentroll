@@ -90,6 +90,7 @@ def main():
         model_occupied=True,        # the reference exhibits fold the model into occupied
         derive_vacant_market=False,  # reference is a frozen fixture (its own vacant rents)
         expand_nonrev=False,         # its model already carries the rent/concession offset
+        net_concession=False,        # reference shows gross contract rent
     )
     out = os.path.join(HERE, "_heritage_generated.xlsx")
     build_exhibits(units, config, out)

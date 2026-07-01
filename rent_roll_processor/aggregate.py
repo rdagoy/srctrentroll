@@ -31,6 +31,16 @@ def is_occupied(unit: Unit, model_occupied: bool = False) -> bool:
     if unit.occupancy == MODEL:
         return model_occupied
     return unit.occupancy == OCC
+
+
+def in_place_rent(unit: Unit, net_concession: bool = False) -> float:
+    """In-place (contract) rent used by the summaries.  When ``net_concession``
+    is on, the concession (a negative number) is netted in, so e.g. a model
+    unit whose rent = market and concession = -market contributes 0."""
+    v = unit.contract_rent or 0.0
+    if net_concession:
+        v += unit.concession or 0.0
+    return v
 # Rolling lease windows.  Each "N days" column is really an N/30 calendar-month
 # look-back (this matches the reference exhibits, e.g. a lease 61 days out still
 # lands in the "60 Days" column because it is within 2 calendar months).
@@ -118,17 +128,18 @@ class Totals:
     ltl_pct_total: Optional[float]
 
 
-def _summarize_group(key: str, units: List[Unit], model_occupied: bool = False) -> GroupSummary:
+def _summarize_group(key: str, units: List[Unit], model_occupied: bool = False,
+                     net_concession: bool = False) -> GroupSummary:
     occ = [u for u in units if is_occupied(u, model_occupied)]
     tot_units = len(units)
     occ_units = len(occ)
     sqft = sum(u.sqft for u in units)
     occ_sqft = sum(u.sqft for u in occ)
     mkt_rent = sum(u.market_rent for u in units)
-    cont_rent = sum(u.contract_rent for u in units)
+    cont_rent = sum(in_place_rent(u, net_concession) for u in units)
     other_inc = sum(u.other_income for u in units)
     # "Max Rent" = the top in-place (contract) rent among occupied units.
-    max_rent = max((u.contract_rent for u in occ), default=0.0)
+    max_rent = max((in_place_rent(u, net_concession) for u in occ), default=0.0)
     beds = units[0].beds if units else 0.0
     baths = units[0].baths if units else 0.0
     return GroupSummary(
@@ -161,32 +172,37 @@ def _group_units(units: List[Unit], key_fn) -> "list[tuple[str, list[Unit]]]":
     return items
 
 
-def unit_mix(units: List[Unit], model_occupied: bool = False) -> List[GroupSummary]:
+def unit_mix(units: List[Unit], model_occupied: bool = False,
+             net_concession: bool = False) -> List[GroupSummary]:
     """Per floor-plan summary rows, sorted by beds/baths/plan."""
-    return [_summarize_group(str(k), g, model_occupied)
+    return [_summarize_group(str(k), g, model_occupied, net_concession)
             for k, g in _group_units(units, lambda u: u.floor_plan)]
 
 
-def bed_mix(units: List[Unit], model_occupied: bool = False) -> List[GroupSummary]:
+def bed_mix(units: List[Unit], model_occupied: bool = False,
+            net_concession: bool = False) -> List[GroupSummary]:
     """Per bed-count summary rows."""
     out = []
     for k, g in _group_units(units, lambda u: u.beds):
         beds = g[0].beds
         label = int(beds) if float(beds).is_integer() else beds
-        out.append(_summarize_group(str(label), g, model_occupied))
+        out.append(_summarize_group(str(label), g, model_occupied, net_concession))
     return out
 
 
-def _window_stat(occ_units: List[Unit], as_of: date, days: int) -> Dict[str, Any]:
+def _window_stat(occ_units: List[Unit], as_of: date, days: int,
+                 net_concession: bool = False) -> Dict[str, Any]:
     start = _minus_months(as_of, WINDOW_MONTHS[days])
     sel = [u for u in occ_units
            if u.lease_start and start <= u.lease_start <= as_of]
     if not sel:
         return {"avg": NA, "count": 0}
-    return {"avg": sum(u.contract_rent for u in sel) / len(sel), "count": len(sel)}
+    return {"avg": sum(in_place_rent(u, net_concession) for u in sel) / len(sel),
+            "count": len(sel)}
 
 
-def recent_leases(units: List[Unit], as_of: date, model_occupied: bool = False) -> List[RecentLeaseRow]:
+def recent_leases(units: List[Unit], as_of: date, model_occupied: bool = False,
+                  net_concession: bool = False) -> List[RecentLeaseRow]:
     rows = []
     for k, g in _group_units(units, lambda u: u.floor_plan):
         occ = [u for u in g if is_occupied(u, model_occupied)]
@@ -195,7 +211,7 @@ def recent_leases(units: List[Unit], as_of: date, model_occupied: bool = False) 
         sqft = sum(u.sqft for u in g)
         mkt_all = sum(u.market_rent for u in g)
         occ_market = _avg([u.market_rent for u in occ])
-        in_place = _avg([u.contract_rent for u in occ])
+        in_place = _avg([in_place_rent(u, net_concession) for u in occ])
         rows.append(RecentLeaseRow(
             key=str(k),
             occ_units=occ_units,
@@ -206,7 +222,7 @@ def recent_leases(units: List[Unit], as_of: date, model_occupied: bool = False) 
             occ_market_rent=occ_market or 0.0,
             in_place_rent=in_place,
             pct_of_market=(in_place / occ_market) if (in_place and occ_market) else None,
-            windows={d: _window_stat(occ, as_of, d) for d in RECENT_WINDOWS},
+            windows={d: _window_stat(occ, as_of, d, net_concession) for d in RECENT_WINDOWS},
             beds=g[0].beds,
             baths=g[0].baths,
         ))
@@ -216,20 +232,21 @@ def recent_leases(units: List[Unit], as_of: date, model_occupied: bool = False) 
 def compute_totals(units: List[Unit], config: RollConfig,
                    mix: Optional[List[GroupSummary]] = None) -> Totals:
     model_occupied = config.model_occupied
-    mix = mix if mix is not None else unit_mix(units, model_occupied)
+    net = config.net_concession
+    mix = mix if mix is not None else unit_mix(units, model_occupied, net)
     occ = [u for u in units if is_occupied(u, model_occupied)]
     tot_units = len(units)
     occ_units = len(occ)
     sqft = sum(u.sqft for u in units)
     occ_sqft = sum(u.sqft for u in occ)
     mkt_rent = sum(u.market_rent for u in units)
-    cont_rent = sum(u.contract_rent for u in units)
+    cont_rent = sum(in_place_rent(u, net) for u in units)
     other_inc = sum(u.other_income for u in units)
     conc = sum(u.concession for u in units)
     emp_disc = sum(u.emp_discount for u in units)
 
     occ_market = _avg([u.market_rent for u in occ]) or 0.0
-    in_place = _avg([u.contract_rent for u in occ])
+    in_place = _avg([in_place_rent(u, net) for u in occ])
 
     # Max Rent total = weighted average of per-group max by total units.
     if tot_units and mix:
@@ -238,8 +255,7 @@ def compute_totals(units: List[Unit], config: RollConfig,
         max_rent = 0.0
 
     window_counts = {
-        d: sum(_window_stat([u for u in g], config.as_of_date, d)["count"]
-               for g in [occ])
+        d: _window_stat(occ, config.as_of_date, d, net)["count"]
         for d in RECENT_WINDOWS
     }
 
