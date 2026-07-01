@@ -45,10 +45,10 @@ def _apply_nonrev(units: List[Unit], config: RollConfig) -> None:
 
 
 def _comp_key(unit: Unit):
-    """Comp bucket for the vacant-market calc: floor plan AND renovation status,
-    so a classic vacant is priced off classic comps and a renovated vacant off
-    renovated comps (a floor plan's classic and reno rents differ)."""
-    return (unit.floor_plan, bool(unit.renovated))
+    """Comp bucket for the vacant-market calc: the raw unit type, strictly.
+    A vacant unit is priced only off occupied units of the exact same unit
+    type (not merged floor plan, not renovation status)."""
+    return unit.unit_type
 
 
 def _apply_vacant_market(units: List[Unit]) -> None:

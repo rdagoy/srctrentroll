@@ -58,10 +58,10 @@ future model tuning has the full context. Each decision notes *what* changed,
 
 10. **Vacant market rent derived** — each vacant unit's market rent is set to the
     in-place (contract) rent of the most-recently-started lease of the same
-    **floor plan AND renovation status** (classic vs renovated are priced
-    separately — see fix in #13); fallback is that bucket's max in-place rent; if
-    no occupied comp exists the source value is kept. Toggle
-    `RollConfig.derive_vacant_market` (default True). *(derive.py `_apply_vacant_market`)*
+    **unit type** (strictly the unit-type code — see #13/#14); fallback is that
+    unit type's max in-place rent; if no occupied comp exists the source value is
+    kept. Toggle `RollConfig.derive_vacant_market` (default True).
+    *(derive.py `_apply_vacant_market`)*
 
 11. **Non-revenue units expanded** — a unit whose tenant name is
     `admin`/`down`/`super`/`model` (or whose status already maps to one) is
@@ -88,10 +88,15 @@ future model tuning has the full context. Each decision notes *what* changed,
 
 13. **Vacant-market fix: reno-aware comps** — the vacant-market calc (#10)
     originally grouped comps by merged floor plan, so a *classic* vacant could
-    pick up a *renovated* unit's rent (and vice-versa). Now comps are bucketed by
-    `(floor_plan, renovated)`. *(derive.py `_comp_key`)*
-    - *Verified:* all 21 Station J Town vacants match the per-unit-type rule;
-      e.g. stjt2B1 (classic) 1120 → **965**, stjt2B2R (reno) → **1190**.
+    pick up a *renovated* unit's rent (and vice-versa). First fixed by bucketing
+    on `(floor_plan, renovated)`.
+
+14. **Vacant-market: strict unit-type basis** — per clarification, the comp
+    bucket is now **strictly the unit-type code** (`_comp_key` returns
+    `unit.unit_type`), not floor plan or renovation status. *(derive.py `_comp_key`)*
+    - *Verified:* all 21 Station J Town vacants match the strict unit-type rule
+      (e.g. stjt2B1 → 965, stjt2B2R → 1190). Requires each Unit to carry its raw
+      `unit_type` code.
 
 ---
 
