@@ -92,6 +92,7 @@ def main():
         expand_nonrev=False,         # its model already carries the rent/concession offset
         net_concession=False,        # reference shows gross contract rent
         zero_rent_placeholder=False,  # frozen fixture
+        normalize_vacant_name=False,  # reference keeps "VACANT"
     )
     out = os.path.join(HERE, "_heritage_generated.xlsx")
     build_exhibits(units, config, out)

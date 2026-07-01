@@ -162,13 +162,25 @@ def _summarize_group(key: str, units: List[Unit], model_occupied: bool = False,
     )
 
 
+def group_sort_key(group: List[Unit], key) -> tuple:
+    """Ordering priority: bed count, then bath count, then unit SF.
+    Unknown beds/baths sort last (fall back to SF)."""
+    beds = group[0].beds
+    baths = group[0].baths
+    rep_sf = sum((u.sqft or 0) for u in group) / len(group) if group else 0
+    INF = float("inf")
+    return (beds if beds is not None else INF,
+            baths if baths is not None else INF,
+            rep_sf, str(key))
+
+
 def _group_units(units: List[Unit], key_fn) -> "list[tuple[str, list[Unit]]]":
-    """Group preserving first-seen order, then sort by (beds, baths, key)."""
+    """Group preserving first-seen order, then sort by beds/baths/SF."""
     groups: Dict[Any, List[Unit]] = {}
     for u in units:
         groups.setdefault(key_fn(u), []).append(u)
     items = list(groups.items())
-    items.sort(key=lambda kv: (kv[1][0].beds, kv[1][0].baths, str(kv[0])))
+    items.sort(key=lambda kv: group_sort_key(kv[1], kv[0]))
     return items
 
 

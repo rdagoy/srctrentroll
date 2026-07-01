@@ -36,6 +36,8 @@ GRAY = "FF808080"
 HEADER_FILL = PatternFill("solid", fgColor=C_BLUE)
 TOTAL_FILL = PatternFill("solid", fgColor=C_TOTAL)
 STAT_FILL = PatternFill("solid", fgColor=C_STAT)
+VACANT_FILL = PatternFill("solid", fgColor="FFFFFF00")   # yellow (255,255,0)
+VACANT_FONT = Font(size=11, color="FF0000FF")            # blue (0,0,255)
 
 TITLE_FONT = Font(bold=True, size=15, color=C_TITLE)
 PROP_FONT = Font(bold=True, size=15, color=GRAY)
@@ -211,6 +213,12 @@ def _build_pres_rent_roll(wb, units: List[Unit], config: RollConfig, totals):
             _c(ws, f"AE{r}", uw, font=BODY_FONT, nf=NF_USD, halign="center")
             _c(ws, f"AF{r}", ltl, font=BODY_FONT, nf=NF_USD, halign="center")
             _c(ws, f"AG{r}", ltlpct, font=BODY_FONT, nf=NF_PCT, halign="center")
+        # Vacant units: highlight the whole row (yellow fill, blue font).
+        if u.occupancy == "Vac":
+            for col in range(4, 34):   # D..AG
+                cell = ws.cell(r, col)
+                cell.fill = VACANT_FILL
+                cell.font = VACANT_FONT
         r += 1
 
     # Total / Wtd. Average row
@@ -563,16 +571,24 @@ def _olr_unit_types(units):
     The Checking 'Floor Plan' label appends ', R' for renovated types so each
     row is unique (classic and reno of the same plan stay distinct)."""
     seen = {}
+    sf_acc = {}
     for u in units:
         key = u.unit_type or u.floor_plan
+        sf_acc.setdefault(key, []).append(u.sqft or 0)
         if key not in seen:
             reno = bool(u.renovated)
             label = u.floor_plan + (", R" if reno else "")
             seen[key] = {
                 "code": key, "label": label, "beds": u.beds, "baths": u.baths,
                 "reno": "Yes" if reno else "No",
-                "sort": (u.beds or 0, u.baths or 0, u.floor_plan, reno),
             }
+    INF = float("inf")
+    for key, d in seen.items():
+        rep_sf = sum(sf_acc[key]) / len(sf_acc[key])
+        # priority: beds, baths, then unit SF (unknown beds/baths sort last)
+        d["sort"] = (d["beds"] if d["beds"] is not None else INF,
+                     d["baths"] if d["baths"] is not None else INF,
+                     rep_sf, d["label"])
     return sorted(seen.values(), key=lambda d: d["sort"])
 
 

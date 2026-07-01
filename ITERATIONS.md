@@ -131,6 +131,23 @@ count against the source's own total** (e.g. "Total Rentable Units").
     - *Maven effect:* 8 columns (Building Protection, Pet, Pest, Trash, Water,
       WiFi, MTM Fee, RUBS); detail totals 6,361 = source other income.
 
+19. **Vacant name normalization** — any tenant name containing "vacant" (e.g.
+    "-- Vacant --", "VACANT") collapses to the literal "Vacant". Toggle
+    `normalize_vacant_name` (default True; Heritage False). *(derive.py
+    `_apply_vacant_name`)* — also fixes the OneLineRR occupancy formula, which
+    tests `K="Vacant"` exactly.
+
+20. **Vacant row highlight** — on the Pres. Rent Roll every vacant unit's row
+    (cols D–AG) is filled yellow (RGB 255,255,0) with blue font (RGB 0,0,255).
+    *(workbook.py `VACANT_FILL`/`VACANT_FONT`)*
+
+21. **Unit-type ordering: beds → baths → SF** — the group sort (Unit Mix, Bed
+    Mix, Recent Leases) and the OneLineRR Checking table now order by bed count,
+    then bath count, then unit SF; unknown beds/baths fall back to SF (sort
+    last). *(aggregate.py `group_sort_key`; workbook.py `_olr_unit_types`)*
+    - Heritage order unchanged (SF is constant within each same-bed/bath plan),
+      so the regression still matches.
+
 ---
 
 ## Open / future tuning items

@@ -87,11 +87,20 @@ def _apply_zero_rent_placeholder(units: List[Unit]) -> None:
             u.contract_rent = u.market_rent
 
 
+def _apply_vacant_name(units: List[Unit]) -> None:
+    """Any tenant name containing 'vacant' -> the literal 'Vacant'."""
+    for u in units:
+        if u.tenant_name and "vacant" in u.tenant_name.lower():
+            u.tenant_name = "Vacant"
+
+
 def apply_deal_rules(units: List[Unit], config: RollConfig) -> List[Unit]:
     """Return a new list of units with the deal-level derivations applied.
 
     The input units are not mutated (each is shallow-copied)."""
     out = [copy.copy(u) for u in units]
+    if config.normalize_vacant_name:
+        _apply_vacant_name(out)
     if config.expand_nonrev:
         _apply_nonrev(out, config)
     if config.derive_vacant_market:

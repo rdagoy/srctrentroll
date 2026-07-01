@@ -222,6 +222,9 @@ class RollConfig:
         zero_rent_placeholder: for an occupied unit carrying $0 contract rent,
                        use its market rent as a placeholder in-place rent.
                        Vacant and non-revenue units are unaffected.  Default True.
+        normalize_vacant_name: collapse any tenant name containing "vacant"
+                       (e.g. "-- Vacant --", "VACANT") to the literal "Vacant".
+                       Default True.
     """
     property_name: str
     as_of_date: date
@@ -234,6 +237,7 @@ class RollConfig:
     expand_nonrev: bool = True
     net_concession: bool = True
     zero_rent_placeholder: bool = True
+    normalize_vacant_name: bool = True
 
     def __post_init__(self):
         self.as_of_date = _coerce_date(self.as_of_date) or self.as_of_date
