@@ -87,21 +87,6 @@ def _apply_zero_rent_placeholder(units: List[Unit]) -> None:
             u.contract_rent = u.market_rent
 
 
-def _apply_unit_type_map(units: List[Unit], config: RollConfig) -> None:
-    """Assign floor plan / beds / baths from the analyst-filled mapping table."""
-    m = config.unit_type_map or {}
-    for u in units:
-        entry = m.get(u.unit_type)
-        if not entry:
-            continue
-        if entry.get("floor_plan"):
-            u.floor_plan = entry["floor_plan"]
-        if entry.get("beds") is not None:
-            u.beds = entry["beds"]
-        if entry.get("baths") is not None:
-            u.baths = entry["baths"]
-
-
 def _apply_vacant_name(units: List[Unit]) -> None:
     """Any tenant name containing 'vacant' -> the literal 'Vacant'."""
     for u in units:
@@ -114,8 +99,6 @@ def apply_deal_rules(units: List[Unit], config: RollConfig) -> List[Unit]:
 
     The input units are not mutated (each is shallow-copied)."""
     out = [copy.copy(u) for u in units]
-    if config.unit_type_map:
-        _apply_unit_type_map(out, config)
     if config.normalize_vacant_name:
         _apply_vacant_name(out)
     if config.expand_nonrev:

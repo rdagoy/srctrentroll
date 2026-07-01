@@ -22,8 +22,6 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from rent_roll_processor import Unit, RollConfig, build_exhibits  # noqa: E402
 from rent_roll_processor.naming import output_filename            # noqa: E402
 from rent_roll_processor.schema import _coerce_date               # noqa: E402
-from rent_roll_processor.mapping import (                         # noqa: E402
-    write_unit_type_mapping, read_unit_type_mapping)
 
 PROPERTY = "Colonial Pointe"
 AS_OF = date(2026, 3, 31)   # Q1 2026 (no explicit as-of on the rent-roll pages)
@@ -156,22 +154,9 @@ def build_units():
 
 
 def main():
-    args = sys.argv[1:]
+    out = sys.argv[1] if len(sys.argv) > 1 else output_filename(PROPERTY)
     units = build_units()
-
-    # Step 1: emit the fill-in Unit Type Mapping table, then stop.
-    if args and args[0] == "map":
-        path = args[1] if len(args) > 1 else f"Unit Type Mapping - {PROPERTY}.xlsx"
-        write_unit_type_mapping(units, path, PROPERTY)
-        print(f"Wrote mapping table {path} "
-              f"({len({u.unit_type for u in units})} unit types)")
-        return 0
-
-    # Step 2 (optional): incorporate a filled mapping table.
-    out = args[0] if args else output_filename(PROPERTY)
-    utmap = read_unit_type_mapping(args[1]) if len(args) > 1 else {}
-    config = RollConfig(property_name=PROPERTY, as_of_date=AS_OF,
-                        uw_market_rents={}, unit_type_map=utmap)
+    config = RollConfig(property_name=PROPERTY, as_of_date=AS_OF, uw_market_rents={})
     build_exhibits(units, config, out)
 
     from rent_roll_processor.aggregate import is_occupied
@@ -180,7 +165,7 @@ def main():
     adm = sum(1 for u in units if u.occupancy == "Admin")
     print(f"Wrote {out}")
     print(f"  units={len(units)}  occupied={occ}  vacant={vac}  admin(non-rev)={adm}  "
-          f"occ%={occ/len(units):.2%}  mapping={'applied' if utmap else 'none (types as floor plans)'}")
+          f"occ%={occ/len(units):.2%}")
     # reconcile rent totals per building against the source page totals
     for bldg, src_total in (("556", 218106), ("558", 33500)):
         tot = sum(u.market_rent for u in units if u.unit_id.startswith(bldg + "-"))
