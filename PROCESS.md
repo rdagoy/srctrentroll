@@ -89,7 +89,7 @@ model units, large negative LTL, floor plans missing a UW market rent).
 | Vacant market rent | recomputed to the **in-place rent of the most-recently-started lease of the same *unit type*** (strictly the unit-type code — not floor plan, not renovation status); fallback: that unit type's max in-place rent. Toggle `derive_vacant_market`. |
 | Non-revenue units | tenant named `admin`/`down`/`super`/`model` → status normalized to that label, **rent set = market rent**, and an offsetting **negative concession** added (net rent 0). Non-revenue units are not occupied. Toggle `expand_nonrev`. |
 | Vacant name | any tenant name containing "vacant" (e.g. "-- Vacant --") is collapsed to the literal **"Vacant"**. Toggle `normalize_vacant_name`. |
-| Vacant row highlight | on the Pres. Rent Roll, every **vacant unit's row is filled yellow (255,255,0) with blue font (0,0,255)**. |
+| Vacant row highlight | on the **OneLineRR** tab, every vacant unit's row is filled yellow (255,255,0) with blue font (0,0,255). |
 | Unit-type ordering | summary rows and the OneLineRR Checking table sort by **bed count → bath count → unit SF** (SF is the basis when beds/baths are unknown). |
 | Occupied, $0 rent | an **occupied** unit carrying $0 contract rent uses its **market rent as a placeholder** in-place rent (no concession). Vacant/non-revenue units are unaffected. Toggle `zero_rent_placeholder`. |
 | In-place / Cont Rent | **net of concession** in the summary tabs (contract + concession), so a non-revenue unit nets to 0 and real concessions reduce in-place rent. The Pres. Rent Roll still shows gross contract and concession in separate columns. Toggle `net_concession`. |

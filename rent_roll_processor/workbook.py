@@ -37,7 +37,7 @@ HEADER_FILL = PatternFill("solid", fgColor=C_BLUE)
 TOTAL_FILL = PatternFill("solid", fgColor=C_TOTAL)
 STAT_FILL = PatternFill("solid", fgColor=C_STAT)
 VACANT_FILL = PatternFill("solid", fgColor="FFFFFF00")   # yellow (255,255,0)
-VACANT_FONT = Font(size=11, color="FF0000FF")            # blue (0,0,255)
+VACANT_FONT = Font(size=10, color="FF0000FF")            # blue (0,0,255)
 
 TITLE_FONT = Font(bold=True, size=15, color=C_TITLE)
 PROP_FONT = Font(bold=True, size=15, color=GRAY)
@@ -213,12 +213,6 @@ def _build_pres_rent_roll(wb, units: List[Unit], config: RollConfig, totals):
             _c(ws, f"AE{r}", uw, font=BODY_FONT, nf=NF_USD, halign="center")
             _c(ws, f"AF{r}", ltl, font=BODY_FONT, nf=NF_USD, halign="center")
             _c(ws, f"AG{r}", ltlpct, font=BODY_FONT, nf=NF_PCT, halign="center")
-        # Vacant units: highlight the whole row (yellow fill, blue font).
-        if u.occupancy == "Vac":
-            for col in range(4, 34):   # D..AG
-                cell = ws.cell(r, col)
-                cell.fill = VACANT_FILL
-                cell.font = VACANT_FONT
         r += 1
 
     # Total / Wtd. Average row
@@ -708,6 +702,8 @@ def _build_onelinerr(wb, units, config):
     oi_first = L(OLR_OI_START)
     oi_last = L(max(oi_cols.values())) if oi_cols else oi_first
     conc_letter = L(conc_col)
+    # rightmost used column, for the full-row vacant highlight
+    row_end_col = max([25] + list(oi_cols.values()) + ([conc_col] if has_conc else []))
 
     for idx, u in enumerate(units):
         r = DS + idx
@@ -748,6 +744,12 @@ def _build_onelinerr(wb, units, config):
                 _c(ws, f"{L(col)}{r}", _money(val), font=OLR_SM, nf="#,##0.00", halign="right")
         if has_conc and u.concession:
             _c(ws, f"{conc_letter}{r}", _money(u.concession), font=OLR_SM, nf="#,##0.00", halign="right")
+        # Vacant units: highlight the whole data row (yellow fill, blue font).
+        if u.occupancy == "Vac":
+            for col in range(1, row_end_col + 1):
+                cell = ws.cell(r, col)
+                cell.fill = VACANT_FILL
+                cell.font = VACANT_FONT
 
     ws.freeze_panes = f"A{DS}"
     return ws

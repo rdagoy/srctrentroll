@@ -137,8 +137,8 @@ count against the source's own total** (e.g. "Total Rentable Units").
     `_apply_vacant_name`)* — also fixes the OneLineRR occupancy formula, which
     tests `K="Vacant"` exactly.
 
-20. **Vacant row highlight** — on the Pres. Rent Roll every vacant unit's row
-    (cols D–AG) is filled yellow (RGB 255,255,0) with blue font (RGB 0,0,255).
+20. **Vacant row highlight** — on the **OneLineRR** tab every vacant unit's data
+    row is filled yellow (RGB 255,255,0) with blue font (RGB 0,0,255).
     *(workbook.py `VACANT_FILL`/`VACANT_FONT`)*
 
 21. **Unit-type ordering: beds → baths → SF** — the group sort (Unit Mix, Bed
