@@ -139,6 +139,7 @@ class Unit:
     move_in: Optional[date] = None        # Z
     lease_start: Optional[date] = None    # AA
     lease_end: Optional[date] = None      # AB
+    move_out: Optional[date] = None       # OneLineRR "Move Out" (expected/actual)
 
     # Optional per-line-item breakdown of other income ({label: amount}); the
     # OneLineRR tab renders one column per label. `other_income` stays the total.
@@ -174,7 +175,7 @@ class Unit:
                 data[k] = _num(data[k])
         if "asking_rent" in data and data["asking_rent"] not in (None, ""):
             data["asking_rent"] = _num(data["asking_rent"])
-        for k in ("move_in", "lease_start", "lease_end"):
+        for k in ("move_in", "lease_start", "lease_end", "move_out"):
             if k in data:
                 data[k] = _coerce_date(data[k])
 

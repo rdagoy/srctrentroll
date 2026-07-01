@@ -109,6 +109,7 @@ def load(path):
                 "move_in": ws.cell(r, 6).value,
                 "lease_start": ws.cell(r, 7).value,
                 "lease_end": ws.cell(r, 8).value,
+                "move_out": ws.cell(r, 9).value,   # Expected Move-Out
             }}
         # Accumulate charge-code line (present on main row and sub-rows).
         code = ws.cell(r, 12).value

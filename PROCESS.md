@@ -134,6 +134,7 @@ ignored. (Maps to the Pres. Rent Roll columns shown in parentheses.)
 | `move_in` | date | (col Z) |
 | `lease_start` | date | drives Recent Leases windows (col AA) |
 | `lease_end` | date | (col AB) |
+| `move_out` | date | expected/actual move-out (OneLineRR Move Out) |
 
 `RollConfig` fields: `property_name`, `as_of_date`, `uw_market_rents`
 (`{floor_plan: rent}`), `reno_tiers`, `status_map` (optional override of the

@@ -141,6 +141,12 @@ count against the source's own total** (e.g. "Total Rentable Units").
     row is filled yellow (RGB 255,255,0) with blue font (RGB 0,0,255).
     *(workbook.py `VACANT_FILL`/`VACANT_FONT`)*
 
+22. **Move-out data on OneLineRR** — the `Unit` schema now carries `move_out`
+    and the OneLineRR "Move Out" column (Q) is populated whenever the source has
+    it. *(schema.py field + coercion; intakes map it — Maven "Expected Move-Out",
+    Station J Town "Move Out"; workbook writes Q)*
+    - *Maven:* 3 move-outs (the notice units). Always include when available.
+
 21. **Unit-type ordering: beds → baths → SF** — the group sort (Unit Mix, Bed
     Mix, Recent Leases) and the OneLineRR Checking table now order by bed count,
     then bath count, then unit SF; unknown beds/baths fall back to SF (sort

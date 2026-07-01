@@ -106,6 +106,7 @@ def load(path):
             "move_in": move_in,
             "lease_start": move_in,   # placeholder: no lease-sign date in source
             "lease_end": lease_exp,
+            "move_out": ws.cell(r, 11).value,   # Move Out
         }))
     return units
 

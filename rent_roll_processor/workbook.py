@@ -728,7 +728,7 @@ def _build_onelinerr(wb, units, config):
             _c(ws, f"O{r}", u.lease_start, font=OLR_SM, nf=NF_DATE, halign="right")
         if u.lease_end:
             _c(ws, f"P{r}", u.lease_end, font=OLR_SM, nf=NF_DATE, halign="right")
-        if getattr(u, "move_out", None):
+        if u.move_out:
             _c(ws, f"Q{r}", u.move_out, font=OLR_SM, nf=NF_DATE, halign="right")
         # Other Income totals over the dynamic detail columns.
         r_formula = f"=SUM({oi_first}{r}:{oi_last}{r})" if oi_cols else 0
