@@ -149,6 +149,9 @@ count against the source's own total** (e.g. "Total Rentable Units").
     - *Maven:* "Concession-Employee Rent Discount Special" (−374.70) moved from
       concession → employee discount on 800-2C. Grand scheduled total unchanged
       (58,021.30); that unit's netted in-place rent rises by 374.70.
+    - **Decision (confirmed):** employee discounts are NOT netted into in-place
+      rent — netting stays concession-only. Employee discount is treated as a
+      separate, removable line (potential add-back), not a permanent rent cut.
 
 22. **Move-out data on OneLineRR** — the `Unit` schema now carries `move_out`
     and the OneLineRR "Move Out" column (Q) is populated whenever the source has
