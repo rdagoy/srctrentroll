@@ -90,6 +90,7 @@ model units, large negative LTL, floor plans missing a UW market rent).
 | Non-revenue units | tenant named `admin`/`down`/`super`/`model` → status normalized to that label, **rent set = market rent**, and an offsetting **negative concession** added (net rent 0). Non-revenue units are not occupied. Toggle `expand_nonrev`. |
 | Vacant name | any tenant name containing "vacant" (e.g. "-- Vacant --") is collapsed to the literal **"Vacant"**. Toggle `normalize_vacant_name`. |
 | Vacant row highlight | on the **OneLineRR** tab, every vacant unit's row is filled yellow (255,255,0) with blue font (0,0,255). |
+| Other Income order | in the OneLineRR Other Income section, **pet-related charges are placed leftmost** (any line item whose name contains "pet"); other items keep their order. |
 | Unit-type ordering | summary rows and the OneLineRR Checking table sort by **bed count → bath count → unit SF** (SF is the basis when beds/baths are unknown). |
 | Employee discount | any charge whose name contains "employee discount" is routed to the **Employee Discount** section (Pres. RR col X; OneLineRR "Employee Discounts"), not concession. It is *not* netted into in-place rent (netting is concession-only). |
 | Occupied, $0 rent | an **occupied** unit carrying $0 contract rent uses its **market rent as a placeholder** in-place rent (no concession). Vacant/non-revenue units are unaffected. Toggle `zero_rent_placeholder`. |

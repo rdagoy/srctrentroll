@@ -679,6 +679,10 @@ def _build_onelinerr(wb, units, config):
                 oi_names.append(name)
     if not oi_names and any(u.other_income for u in units):
         oi_names = ["Other Income"]
+    # Pet-related charges always sit leftmost in the Other Income section
+    # (stable: relative order within each group preserved).
+    pet = [n for n in oi_names if "pet" in n.lower()]
+    oi_names = pet + [n for n in oi_names if n not in pet]
     oi_cols = {name: OLR_OI_START + i for i, name in enumerate(oi_names)}
 
     has_conc = any(u.concession for u in units)

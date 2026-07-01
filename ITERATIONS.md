@@ -131,6 +131,12 @@ count against the source's own total** (e.g. "Total Rentable Units").
     - *Maven effect:* 8 columns (Building Protection, Pet, Pest, Trash, Water,
       WiFi, MTM Fee, RUBS); detail totals 6,361 = source other income.
 
+24. **Other Income: pet charges leftmost** — in the OneLineRR Other Income
+    section, any line item whose name contains "pet" is placed in the leftmost
+    column(s); the rest keep their first-seen order (stable partition).
+    *(workbook.py `_build_onelinerr`)*
+    - *Maven:* "Pet Rent" now the first Other Income column (AB).
+
 19. **Vacant name normalization** — any tenant name containing "vacant" (e.g.
     "-- Vacant --", "VACANT") collapses to the literal "Vacant". Toggle
     `normalize_vacant_name` (default True; Heritage False). *(derive.py
