@@ -141,6 +141,15 @@ count against the source's own total** (e.g. "Total Rentable Units").
     row is filled yellow (RGB 255,255,0) with blue font (RGB 0,0,255).
     *(workbook.py `VACANT_FILL`/`VACANT_FONT`)*
 
+23. **Employee-discount routing** — any charge whose name contains "employee
+    discount" is classified to the **employee-discount** field (Pres. RR col X;
+    OneLineRR gets an "Employee Discounts" detail column, T = SUM). Not netted
+    into in-place rent (netting stays concession-only). *(intake classification;
+    workbook OneLineRR emp column)*
+    - *Maven:* "Concession-Employee Rent Discount Special" (−374.70) moved from
+      concession → employee discount on 800-2C. Grand scheduled total unchanged
+      (58,021.30); that unit's netted in-place rent rises by 374.70.
+
 22. **Move-out data on OneLineRR** — the `Unit` schema now carries `move_out`
     and the OneLineRR "Move Out" column (Q) is populated whenever the source has
     it. *(schema.py field + coercion; intakes map it — Maven "Expected Move-Out",

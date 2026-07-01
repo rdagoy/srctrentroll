@@ -78,6 +78,7 @@ def load(path):
             units.append(Unit.from_dict(c["fields"] | {
                 "contract_rent": c["rent"],
                 "concession": c["conc"],
+                "emp_discount": c["emp"],
                 "other_income": sum(c["oi_items"].values()),
                 "other_income_items": dict(c["oi_items"]),
             }))
@@ -94,7 +95,7 @@ def load(path):
             fp, beds, baths, reno, raw = decode(ws.cell(r, 2).value)
             name = str(ws.cell(r, 5).value or "").strip()
             from collections import defaultdict
-            cur = {"rent": 0.0, "conc": 0.0, "oi_items": defaultdict(float), "fields": {
+            cur = {"rent": 0.0, "conc": 0.0, "emp": 0.0, "oi_items": defaultdict(float), "fields": {
                 "unit_id": a.strip(),
                 "unit_type": raw,
                 "floor_plan": fp,
@@ -117,7 +118,10 @@ def load(path):
         if (cur and code and str(code).strip() not in ("Charge Total:", "-")
                 and isinstance(amt, (int, float))):
             c = str(code)
-            if c.startswith("Rent-"):
+            cl = c.lower()
+            if "employee" in cl and "discount" in cl:
+                cur["emp"] += amt           # employee discount -> its own section
+            elif c.startswith("Rent-"):
                 cur["rent"] += amt
             elif c.startswith("Concession"):
                 cur["conc"] += amt

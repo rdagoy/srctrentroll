@@ -682,14 +682,18 @@ def _build_onelinerr(wb, units, config):
     oi_cols = {name: OLR_OI_START + i for i, name in enumerate(oi_names)}
 
     has_conc = any(u.concession for u in units)
-    conc_col = (max(oi_cols.values()) + 2) if oi_cols else OLR_OI_START
+    has_emp = any(u.emp_discount for u in units)
     L = get_column_letter
+    conc_col = (max(oi_cols.values()) + 2) if oi_cols else OLR_OI_START
+    emp_col = conc_col + 2
 
     _c(ws, f"Y{GROUP_HDR}", "Rent", font=OLR_SMB)
     if oi_cols:
         _c(ws, f"{L(OLR_OI_START)}{GROUP_HDR}", "Other Income", font=OLR_SMB)
     if has_conc:
         _c(ws, f"{L(conc_col)}{GROUP_HDR}", "Concessions", font=OLR_SMB)
+    if has_emp:
+        _c(ws, f"{L(emp_col)}{GROUP_HDR}", "Employee Discounts", font=OLR_SMB)
     for letter, title in OLR_DATA_HDR:
         _c(ws, f"{letter}{DATA_HDR}", title, font=OLR_SMB)
     for name, col in oi_cols.items():
@@ -698,12 +702,17 @@ def _build_onelinerr(wb, units, config):
     if has_conc:
         _c(ws, f"{L(conc_col)}{DATA_HDR}", "Concession", font=OLR_SMB)
         ws.column_dimensions[L(conc_col)].width = 13.0
+    if has_emp:
+        _c(ws, f"{L(emp_col)}{DATA_HDR}", "Employee Discount", font=OLR_SMB)
+        ws.column_dimensions[L(emp_col)].width = 13.0
 
     oi_first = L(OLR_OI_START)
     oi_last = L(max(oi_cols.values())) if oi_cols else oi_first
     conc_letter = L(conc_col)
+    emp_letter = L(emp_col)
     # rightmost used column, for the full-row vacant highlight
-    row_end_col = max([25] + list(oi_cols.values()) + ([conc_col] if has_conc else []))
+    row_end_col = max([25] + list(oi_cols.values())
+                      + ([conc_col] if has_conc else []) + ([emp_col] if has_emp else []))
 
     for idx, u in enumerate(units):
         r = DS + idx
@@ -734,7 +743,7 @@ def _build_onelinerr(wb, units, config):
         r_formula = f"=SUM({oi_first}{r}:{oi_last}{r})" if oi_cols else 0
         _c(ws, f"R{r}", r_formula, font=OLR_SM, nf="#,##0.00", halign="right")
         _c(ws, f"S{r}", f"={conc_letter}{r}" if has_conc else 0, font=OLR_SM, nf="#,##0.00", halign="right")
-        _c(ws, f"T{r}", 0, font=OLR_SM, nf="#,##0.00", halign="right")
+        _c(ws, f"T{r}", f"={emp_letter}{r}" if has_emp else 0, font=OLR_SM, nf="#,##0.00", halign="right")
         _c(ws, f"Y{r}", _money(u.contract_rent), font=OLR_SM, nf="#,##0.00", halign="right")
         # Per-line-item Other Income values.
         items = u.other_income_items or {}
@@ -744,6 +753,8 @@ def _build_onelinerr(wb, units, config):
                 _c(ws, f"{L(col)}{r}", _money(val), font=OLR_SM, nf="#,##0.00", halign="right")
         if has_conc and u.concession:
             _c(ws, f"{conc_letter}{r}", _money(u.concession), font=OLR_SM, nf="#,##0.00", halign="right")
+        if has_emp and u.emp_discount:
+            _c(ws, f"{emp_letter}{r}", _money(u.emp_discount), font=OLR_SM, nf="#,##0.00", halign="right")
         # Vacant units: highlight the whole data row (yellow fill, blue font).
         if u.occupancy == "Vac":
             for col in range(1, row_end_col + 1):
