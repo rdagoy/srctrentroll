@@ -87,6 +87,7 @@ model units, large negative LTL, floor plans missing a UW market rent).
 | Avg Mkt/Unit | mkt rent ÷ **total** units. Avg Mkt/SF = mkt rent ÷ total SF. |
 | Vacant market rent | recomputed to the **in-place rent of the most-recently-started lease of the same *unit type*** (strictly the unit-type code — not floor plan, not renovation status); fallback: that unit type's max in-place rent. Toggle `derive_vacant_market`. |
 | Non-revenue units | tenant named `admin`/`down`/`super`/`model` → status normalized to that label, **rent set = market rent**, and an offsetting **negative concession** added (net rent 0). Non-revenue units are not occupied. Toggle `expand_nonrev`. |
+| Occupied, $0 rent | an **occupied** unit carrying $0 contract rent uses its **market rent as a placeholder** in-place rent (no concession). Vacant/non-revenue units are unaffected. Toggle `zero_rent_placeholder`. |
 | In-place / Cont Rent | **net of concession** in the summary tabs (contract + concession), so a non-revenue unit nets to 0 and real concessions reduce in-place rent. The Pres. Rent Roll still shows gross contract and concession in separate columns. Toggle `net_concession`. |
 | Avg Cont/Unit | cont rent ÷ **occupied** units. Avg Cont/SF = cont rent ÷ **occupied** SF. |
 | Max Rent | highest **contract** rent among occupied units in the group. |

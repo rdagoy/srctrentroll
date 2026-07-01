@@ -76,6 +76,17 @@ def _apply_vacant_market(units: List[Unit]) -> None:
             # else: no occupied comp -> leave the source market rent as-is
 
 
+def _apply_zero_rent_placeholder(units: List[Unit]) -> None:
+    """Occupied unit carrying $0 contract rent -> use market rent as placeholder.
+
+    Runs after the vacant-market calc so a $0 occupied unit is never used as a
+    vacant comp (the comp filter drops $0 rents); vacant and non-revenue units
+    are untouched here."""
+    for u in units:
+        if u.occupancy == OCC and not u.contract_rent and u.market_rent:
+            u.contract_rent = u.market_rent
+
+
 def apply_deal_rules(units: List[Unit], config: RollConfig) -> List[Unit]:
     """Return a new list of units with the deal-level derivations applied.
 
@@ -85,4 +96,6 @@ def apply_deal_rules(units: List[Unit], config: RollConfig) -> List[Unit]:
         _apply_nonrev(out, config)
     if config.derive_vacant_market:
         _apply_vacant_market(out)
+    if config.zero_rent_placeholder:
+        _apply_zero_rent_placeholder(out)
     return out

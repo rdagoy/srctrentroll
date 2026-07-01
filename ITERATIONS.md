@@ -98,6 +98,15 @@ future model tuning has the full context. Each decision notes *what* changed,
       (e.g. stjt2B1 → 965, stjt2B2R → 1190). Requires each Unit to carry its raw
       `unit_type` code.
 
+15. **Occupied $0-rent placeholder** — an occupied unit carrying $0 contract rent
+    uses its market rent as a placeholder in-place rent (no concession). Runs
+    after the vacant-market calc so the $0 unit is never used as a vacant comp;
+    vacant and non-revenue units are untouched. Toggle
+    `RollConfig.zero_rent_placeholder` (default True; Heritage sets False).
+    *(derive.py `_apply_zero_rent_placeholder`)*
+    - *Station J Town effect:* L30 (Jose Mendoza Hernandez, stjt2A1) contract
+      0 → 990 (= market). All 21 vacants still verify.
+
 ---
 
 ## Open / future tuning items
