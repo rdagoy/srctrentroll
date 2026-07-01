@@ -19,13 +19,19 @@ from typing import Optional, Dict, Any
 
 
 # --- Occupancy normalization -------------------------------------------------
-# Raw status strings from PM exports get mapped to one of three buckets.
+# Raw status strings from PM exports get mapped to a bucket.
 # Per underwriting convention (SOP v3): NTV (notice-to-vacate) and VL
-# (vacant-leased) both count as OCCUPIED.  Model units are non-revenue and are
-# NOT occupied by default (configurable via RollConfig.model_occupied).
+# (vacant-leased) both count as OCCUPIED.  The non-revenue buckets
+# (Model/Admin/Down/Super) are NOT occupied by default; Model can be folded in
+# via RollConfig.model_occupied.
 OCC = "Occ"
 VAC = "Vac"
 MODEL = "Model"
+ADMIN = "Admin"
+DOWN = "Down"
+SUPER = "Super"
+# Non-revenue statuses: in use but generating no rent.
+NON_REVENUE = (MODEL, ADMIN, DOWN, SUPER)
 
 # Default raw -> bucket mapping (compared case-insensitively, stripped).
 DEFAULT_STATUS_MAP: Dict[str, str] = {
@@ -46,9 +52,11 @@ DEFAULT_STATUS_MAP: Dict[str, str] = {
     "vacant-unrented": VAC,
     "vacant unrented": VAC,
     "vr": VAC,
-    "down": VAC,
     "model": MODEL,
     "mdl": MODEL,
+    "admin": ADMIN,
+    "down": DOWN,          # non-revenue (down unit)
+    "super": SUPER,
 }
 
 
@@ -197,6 +205,12 @@ class RollConfig:
                        False (the standard underwriting view: a model is a
                        non-revenue unit).  Set True to match exhibits that
                        fold the model into the occupied count.
+        derive_vacant_market: recompute each vacant unit's market rent from the
+                       latest-leased in-place rent of the same floor plan
+                       (fallback: that plan's max rent).  Default True.
+        expand_nonrev: normalize non-revenue units (admin/down/super/model),
+                       set their rent = market rent and add an offsetting
+                       negative concession (net rent 0).  Default True.
     """
     property_name: str
     as_of_date: date
@@ -205,6 +219,8 @@ class RollConfig:
     status_map: Optional[Dict[str, str]] = None
     bed_total_max_rent: Any = "N/A"
     model_occupied: bool = False
+    derive_vacant_market: bool = True
+    expand_nonrev: bool = True
 
     def __post_init__(self):
         self.as_of_date = _coerce_date(self.as_of_date) or self.as_of_date

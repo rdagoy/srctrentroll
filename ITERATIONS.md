@@ -56,6 +56,27 @@ future model tuning has the full context. Each decision notes *what* changed,
 9. **Output filename = modification date** — `Rent_Roll_Exhibits_<Deal>_mm.dd.yy`
    where `mm.dd.yy` is today's date, not the rent-roll date. *(intake_station_jtown.py)*
 
+10. **Vacant market rent derived** — each vacant unit's market rent is set to the
+    in-place (contract) rent of the same floor plan's most-recently-started
+    lease; fallback is that plan's max in-place rent; if no occupied comp exists
+    the source value is kept. Toggle `RollConfig.derive_vacant_market` (default
+    True). *(derive.py `_apply_vacant_market`)*
+    - *Station J Town effect:* e.g. all vacant 2 BD / 1 BA units → 1120 (in-place
+      rent of the latest lease, unit H16 @ 2026-05-16).
+
+11. **Non-revenue units expanded** — a unit whose tenant name is
+    `admin`/`down`/`super`/`model` (or whose status already maps to one) is
+    normalized to that label, its rent is set = market rent, and an offsetting
+    negative concession is added (net rent 0). Non-revenue units are not counted
+    as occupied. Toggle `RollConfig.expand_nonrev` (default True).
+    *(derive.py `_apply_nonrev`; new statuses Admin/Down/Super in schema.py;
+    OneLineRR occupancy formula + concession column updated)*
+    - *Station J Town effect:* model E06 → rent 1135 (= market), concession -1135.
+
+    Both derivations run in `build_exhibits` (via `derive.apply_deal_rules`)
+    before aggregation, so they flow to every tab. The Heritage fixture sets both
+    toggles False to stay a frozen reference.
+
 ---
 
 ## Open / future tuning items

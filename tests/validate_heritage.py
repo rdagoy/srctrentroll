@@ -87,7 +87,9 @@ def main():
         property_name="Heritage Hill Estates",
         as_of_date=date(2026, 1, 31),
         uw_market_rents=UW_MARKET_RENTS,
-        model_occupied=True,   # the reference exhibits fold the model into occupied
+        model_occupied=True,        # the reference exhibits fold the model into occupied
+        derive_vacant_market=False,  # reference is a frozen fixture (its own vacant rents)
+        expand_nonrev=False,         # its model already carries the rent/concession offset
     )
     out = os.path.join(HERE, "_heritage_generated.xlsx")
     build_exhibits(units, config, out)

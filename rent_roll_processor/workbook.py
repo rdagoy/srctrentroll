@@ -22,6 +22,7 @@ from openpyxl.utils import get_column_letter
 
 from .schema import Unit, RollConfig
 from . import aggregate as agg
+from . import derive
 
 # --- Theme colors (standard Office theme, matching the reference file) -------
 C_BLUE = Color(theme=4, tint=-0.25)     # accent1 darker -> header band
@@ -523,8 +524,9 @@ def _build_recent_leases(wb, units, config, totals):
 YELLOW = PatternFill("solid", fgColor="FFFFFF00")
 OLR_SM = Font(size=10)
 OLR_SMB = Font(bold=True, size=10)
-# Statuses the Checking formulas treat as occupied (matches the reference tool).
-_OCC_STATUSES = ("Occ", "Admin", "Down", "Model")
+# Statuses the Checking formulas treat as occupied (matches the reference tool;
+# non-revenue units are "in use" for this checking view).
+_OCC_STATUSES = ("Occ", "Admin", "Down", "Super", "Model")
 
 # Checking-table header: (col letter, title, halign)
 OLR_CHECK_HDR = [
@@ -667,7 +669,8 @@ def _build_onelinerr(wb, units, config):
         _c(ws, f"A{r}", f"=$D${PROP_ROW}", font=OLR_SM, halign="left")
         _c(ws, f"B{r}", 1 if idx == 0 else f"=B{r-1}+1", font=OLR_SM, halign="left")
         _c(ws, f"C{r}", f'=IF(K{r}="Vacant","Vac",IF(K{r}="Model","Model",'
-                        f'IF(K{r}="Admin","Admin",IF(K{r}="Down","Down","Occ"))))', font=OLR_SM, halign="left")
+                        f'IF(K{r}="Admin","Admin",IF(K{r}="Down","Down",'
+                        f'IF(K{r}="Super","Super","Occ")))))', font=OLR_SM, halign="left")
         _c(ws, f"D{r}", f"=INDEX($C${CS}:$C${CE},MATCH(I{r},$D${CS}:$D${CE},0))", font=OLR_SM, halign="left")
         _c(ws, f"E{r}", f"=INDEX($E${CS}:$E${CE},MATCH(D{r},$C${CS}:$C${CE},0))", font=OLR_SM, halign="left")
         _c(ws, f"F{r}", f"=INDEX($F${CS}:$F${CE},MATCH(D{r},$C${CS}:$C${CE},0))", font=OLR_SM, halign="left")
@@ -690,6 +693,9 @@ def _build_onelinerr(wb, units, config):
         _c(ws, f"S{r}", f"=SUM(AM{r}:AQ{r})", font=OLR_SM, nf="#,##0.00", halign="right")
         _c(ws, f"T{r}", f"=SUM(AS{r}:AW{r})", font=OLR_SM, nf="#,##0.00", halign="right")
         _c(ws, f"Y{r}", _money(u.contract_rent), font=OLR_SM, nf="#,##0.00", halign="right")
+        # Non-revenue concession offset lands in the 'Model' concession column (AM).
+        if u.concession:
+            _c(ws, f"AM{r}", _money(u.concession), font=OLR_SM, nf="#,##0.00", halign="right")
 
     ws.freeze_panes = f"A{DS}"
     return ws
@@ -702,6 +708,9 @@ def build_exhibits(units: List[Unit], config: RollConfig, out_path: str) -> str:
     """Build the 5-tab exhibits workbook and save it to ``out_path``."""
     if not units:
         raise ValueError("No units to process.")
+
+    # Deal-level derivations (vacant market rent, non-revenue offset).
+    units = derive.apply_deal_rules(units, config)
 
     mix = agg.unit_mix(units, config.model_occupied)
     totals = agg.compute_totals(units, config, mix=mix)

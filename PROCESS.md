@@ -85,7 +85,9 @@ model units, large negative LTL, floor plans missing a UW market rent).
 | Occupied SF | sum of SF over occupied units. |
 | Mkt Rent (group) | sum of per-unit market rent over **all** units. |
 | Avg Mkt/Unit | mkt rent ÷ **total** units. Avg Mkt/SF = mkt rent ÷ total SF. |
-| Cont Rent (group) | sum of contract rent (vacants = 0). |
+| Vacant market rent | recomputed to the **in-place rent of the same floor plan's most-recently-started lease** (fallback: that plan's max in-place rent). Toggle `derive_vacant_market`. |
+| Non-revenue units | tenant named `admin`/`down`/`super`/`model` → status normalized to that label, **rent set = market rent**, and an offsetting **negative concession** added (net rent 0). Non-revenue units are not occupied. Toggle `expand_nonrev`. |
+| Cont Rent (group) | sum of contract rent (vacants = 0; non-revenue units carry gross rent offset by concession). |
 | Avg Cont/Unit | cont rent ÷ **occupied** units. Avg Cont/SF = cont rent ÷ **occupied** SF. |
 | Max Rent | highest **contract** rent among occupied units in the group. |
 | Recent-lease windows | trailing **calendar months** (180→6, 120→4, 90→3, 60→2, 30→1). Average of contract rent for occupied units whose lease start falls in the window; `n/a` when none. If the source has no lease-sign date, use the **Move-In date** as the lease-start placeholder. |
