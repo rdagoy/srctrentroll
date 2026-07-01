@@ -169,9 +169,13 @@ class Unit:
         valid = {f.name for f in fields(cls)}
         data = {k: v for k, v in d.items() if k in valid}
 
-        for k in ("sqft", "beds", "baths", "market_rent", "contract_rent",
+        for k in ("sqft", "market_rent", "contract_rent",
                   "concession", "emp_discount", "other_income"):
             if k in data:
+                data[k] = _num(data[k])
+        # beds/baths: keep None when unknown (do not coerce to 0)
+        for k in ("beds", "baths"):
+            if k in data and data[k] is not None:
                 data[k] = _num(data[k])
         if "asking_rent" in data and data["asking_rent"] not in (None, ""):
             data["asking_rent"] = _num(data["asking_rent"])

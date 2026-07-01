@@ -13,6 +13,21 @@ future model tuning has the full context. Each decision notes *what* changed,
 | — | Heritage Hill Estates | OneSite-style (reference exhibits) | 03/16/26 | Reverse-engineered → regression fixture; engine reproduces it value-for-value |
 | 1 | Station J Town | Yardi (`Report1` sheet) | 05/22/26 | 384 units, 94.27% occ; ties to source summary (Mkt 430,031 / Actual 385,359 / SF 365,100) |
 | 2 | Maven @ 806 | 29SC / RealPage (`Detailed` charge-ledger) | 05/15/26 | 51 units, 82.35% occ; ties to source totals (SF 38,376 / scheduled charges 58,021.30 = contract 52,035.45 + other 6,361 + conc −374.70) |
+| 3 | Colonial Pointe (556 + 558) | **scanned/image PDF** (Q1 2026, pages 2 & 4) | 03/31/26 | 88 units (65 + 23), 2 vacant; rent ties: 556 = 218,106 exact, 558 line items = 33,498 (source printed 33,500 — a $2 source artifact) |
+
+### Lessons (Colonial Pointe)
+* **Image-only PDF** → no extractable text; render pages to PNG (PyMuPDF) and
+  read them, then transcribe. Rotate to upright first.
+* **Two buildings, one property** → combined into one deal; unit ids prefixed
+  with building (`556-201`, `558-101`) to stay unique.
+* **Unknown BD/BA** (source has none) → `beds/baths=None`, floor plan = the
+  type code, sorted by SF (rule #21 fallback); fill the OneLineRR Checking
+  table to regroup. Fixed `Unit.from_dict` so `None` beds/baths stay `None`
+  (were coerced to 0) and `bed_mix` labels a `None` group "N/A".
+* **Single rent figure** ("Total") → used as both market and in-place rent;
+  no other income / concession; **no lease-start/move-in** so Recent Leases is
+  empty. Note-flagged units (Leasing Mgr Storage, Maintenance Super Apt) are
+  not auto-detected — surface them for the analyst to classify.
 
 ### Lesson (Maven): unit-count sanity check
 Maven's Bldg-Unit ids came in **two formats** — `800-1A` and `CL - 806-1`. The

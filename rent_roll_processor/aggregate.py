@@ -197,7 +197,12 @@ def bed_mix(units: List[Unit], model_occupied: bool = False,
     out = []
     for k, g in _group_units(units, lambda u: u.beds):
         beds = g[0].beds
-        label = int(beds) if float(beds).is_integer() else beds
+        if beds is None:
+            label = "N/A"
+        elif float(beds).is_integer():
+            label = int(beds)
+        else:
+            label = beds
         out.append(_summarize_group(str(label), g, model_occupied, net_concession))
     return out
 
