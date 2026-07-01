@@ -515,6 +515,12 @@ def _build_recent_leases(wb, units, config, totals):
             b = cell.border
             cell.border = Border(left=DOTTED, right=b.right, top=b.top, bottom=b.bottom)
 
+    # If the source has no lease-start dates, the rolling windows are all n/a;
+    # flag it in the cell directly below the Total row (column C).
+    if not any(u.lease_start for u in units):
+        _c(ws, f"C{tr + 1}", "Lease dates not available",
+           font=Font(bold=True, size=11, color=C_BLACK), halign="left")
+
     _write_audit_block(ws, max(58, tr + 14), totals, col="Z", include_conc=False)
     return ws
 

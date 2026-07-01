@@ -54,6 +54,11 @@ The source columns are inspected and each unit is mapped to the normalized
 - Coercions (numbers like `$1,234`, parenthesized negatives, multiple date
   formats) are handled automatically by `Unit.from_dict`.
 
+When the source has no bed/bath, run the **Unit Type Mapping** step first:
+emit a fill-in table of every distinct unit type (SF + count) with blank Floor
+Plan / BD / BA columns; the analyst fills it and it feeds `RollConfig.unit_type_map`
+so the exhibits group by the real floor plans.
+
 The result is a list of normalized units + a `RollConfig`.
 
 ### Step 2 — Build exhibits *(deterministic)*
@@ -88,6 +93,9 @@ model units, large negative LTL, floor plans missing a UW market rent).
 | Avg Mkt/Unit | mkt rent ÷ **total** units. Avg Mkt/SF = mkt rent ÷ total SF. |
 | Vacant market rent | recomputed to the **in-place rent of the most-recently-started lease of the same *unit type*** (strictly the unit-type code — not floor plan, not renovation status); fallback: that unit type's max in-place rent. Toggle `derive_vacant_market`. |
 | Non-revenue units | tenant named `admin`/`down`/`super`/`model` → status normalized to that label, **rent set = market rent**, and an offsetting **negative concession** added (net rent 0). Non-revenue units are not occupied. Toggle `expand_nonrev`. |
+| Unit-type mapping | for sources lacking bed/bath, a fill-in Unit Type Mapping table (type, SF, # units + blank Floor Plan/BD/BA) is produced first; the analyst-filled result feeds `unit_type_map` to set floor plan/BD/BA per type. |
+| Lease-dates note | if the source has no lease-start dates, the Recent Leases tab shows "Lease dates not available" in the cell just below the Total row. |
+| Admin (non-revenue) units | units flagged (e.g. by a note) as storage / super / maintenance / office / leasing / employee / model are marked **Admin**: rent = market, offsetting negative concession, excluded from occupied. |
 | Vacant name | any tenant name containing "vacant" (e.g. "-- Vacant --") is collapsed to the literal **"Vacant"**. Toggle `normalize_vacant_name`. |
 | Vacant row highlight | on the **OneLineRR** tab, every vacant unit's row is filled yellow (255,255,0) with blue font (0,0,255). |
 | Other Income order | in the OneLineRR Other Income section, **pet-related charges are placed leftmost** (any line item whose name contains "pet"); other items keep their order. |

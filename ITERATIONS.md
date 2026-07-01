@@ -187,6 +187,30 @@ count against the source's own total** (e.g. "Total Rentable Units").
     - Heritage order unchanged (SF is constant within each same-bed/bath plan),
       so the regression still matches.
 
+
+25. **Unit Type Mapping (two-step for missing BD/BA)** — `rent_roll_processor/mapping.py`
+    `write_unit_type_mapping()` emits a fill-in table (Unit Type · SF · # Units ·
+    Floor Plan · BD · BA, last three yellow); `read_unit_type_mapping()` parses
+    the filled file into `RollConfig.unit_type_map`, applied first in
+    `derive.apply_deal_rules` to set floor plan/BD/BA per type. Run
+    `intake_colonial_pointe.py map <file>` for step 1, then pass the filled file
+    to step 2.
+
+26. **Lease-dates note** — when no unit has a lease-start date, the Recent Leases
+    tab prints "Lease dates not available" in the cell directly below the
+    Total/Wtd Average row (column C). *(workbook.py `_build_recent_leases`)*
+
+27. **Admin (non-revenue) from notes** — units flagged by a note as storage /
+    super / maintenance / office / leasing / employee / model are set to
+    occupancy `Admin` (non-revenue) in the intake; the engine then applies
+    rent = market + offsetting concession and excludes them from occupied.
+    *(intake note keyword match; existing `expand_nonrev`)*
+    - *Colonial Pointe:* 556-000 (Leasing Mgr Storage) and 558-307 (Maintenance
+      Super Apt) -> Admin.
+
+28. **Combined multi-building deal** — buildings 556 + 558 combined into one
+    "Colonial Pointe" deal with building-prefixed unit ids (`556-201`).
+
 ---
 
 ## Open / future tuning items

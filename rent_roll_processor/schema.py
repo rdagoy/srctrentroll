@@ -230,6 +230,9 @@ class RollConfig:
         normalize_vacant_name: collapse any tenant name containing "vacant"
                        (e.g. "-- Vacant --", "VACANT") to the literal "Vacant".
                        Default True.
+        unit_type_map: optional {unit_type: {"floor_plan":.., "beds":.., "baths":..}}
+                       used to assign the floor plan / bed / bath for each unit
+                       type (from the analyst-filled Unit Type Mapping table).
     """
     property_name: str
     as_of_date: date
@@ -243,6 +246,7 @@ class RollConfig:
     net_concession: bool = True
     zero_rent_placeholder: bool = True
     normalize_vacant_name: bool = True
+    unit_type_map: Dict[str, Any] = field(default_factory=dict)
 
     def __post_init__(self):
         self.as_of_date = _coerce_date(self.as_of_date) or self.as_of_date

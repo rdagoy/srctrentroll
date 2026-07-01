@@ -14,6 +14,7 @@ Source columns: Unit | Type | Sq. Feet | Residents | Status | Lease End | Total
 Flags: 556-000 "Leasing Mgr Storage Unit" and 558-307 "Maintenance Super Apt".
 """
 import os
+import re
 import sys
 from datetime import date
 
@@ -21,9 +22,13 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from rent_roll_processor import Unit, RollConfig, build_exhibits  # noqa: E402
 from rent_roll_processor.naming import output_filename            # noqa: E402
 from rent_roll_processor.schema import _coerce_date               # noqa: E402
+from rent_roll_processor.mapping import (                         # noqa: E402
+    write_unit_type_mapping, read_unit_type_mapping)
 
 PROPERTY = "Colonial Pointe"
 AS_OF = date(2026, 3, 31)   # Q1 2026 (no explicit as-of on the rent-roll pages)
+# Notes that flag a non-residential / non-revenue unit -> Admin.
+ADMIN_NOTE_RE = re.compile(r"storage|super|mainten|leasing|office|admin|employee|model", re.I)
 
 # building, unit, type, sqft, residents, status, lease_end, total, note
 ROWS = [
@@ -126,7 +131,12 @@ def build_units():
         st = str(status).strip().upper()
         name = residents.strip()
         vacant = "vacant" in name.lower()
-        occ = "Vacant" if vacant else "Occupied"
+        if note and ADMIN_NOTE_RE.search(note):
+            occ = "Admin"          # non-revenue (storage / super / etc.)
+        elif vacant:
+            occ = "Vacant"
+        else:
+            occ = "Occupied"
         units.append(Unit.from_dict({
             "unit_id": f"{bldg}-{unit}",
             "unit_type": utype,
@@ -146,16 +156,31 @@ def build_units():
 
 
 def main():
-    out = sys.argv[1] if len(sys.argv) > 1 else output_filename(PROPERTY)
+    args = sys.argv[1:]
     units = build_units()
-    config = RollConfig(property_name=PROPERTY, as_of_date=AS_OF, uw_market_rents={})
+
+    # Step 1: emit the fill-in Unit Type Mapping table, then stop.
+    if args and args[0] == "map":
+        path = args[1] if len(args) > 1 else f"Unit Type Mapping - {PROPERTY}.xlsx"
+        write_unit_type_mapping(units, path, PROPERTY)
+        print(f"Wrote mapping table {path} "
+              f"({len({u.unit_type for u in units})} unit types)")
+        return 0
+
+    # Step 2 (optional): incorporate a filled mapping table.
+    out = args[0] if args else output_filename(PROPERTY)
+    utmap = read_unit_type_mapping(args[1]) if len(args) > 1 else {}
+    config = RollConfig(property_name=PROPERTY, as_of_date=AS_OF,
+                        uw_market_rents={}, unit_type_map=utmap)
     build_exhibits(units, config, out)
 
     from rent_roll_processor.aggregate import is_occupied
     occ = sum(1 for u in units if is_occupied(u, config.model_occupied))
     vac = sum(1 for u in units if u.occupancy == "Vac")
+    adm = sum(1 for u in units if u.occupancy == "Admin")
     print(f"Wrote {out}")
-    print(f"  units={len(units)}  occupied={occ}  vacant={vac}  occ%={occ/len(units):.2%}")
+    print(f"  units={len(units)}  occupied={occ}  vacant={vac}  admin(non-rev)={adm}  "
+          f"occ%={occ/len(units):.2%}  mapping={'applied' if utmap else 'none (types as floor plans)'}")
     # reconcile rent totals per building against the source page totals
     for bldg, src_total in (("556", 218106), ("558", 33500)):
         tot = sum(u.market_rent for u in units if u.unit_id.startswith(bldg + "-"))
