@@ -67,7 +67,8 @@ type to its floor plan / BD / BA / Renovated flag. Those mapping cells are
 user-editable — edit them and the derived columns and aggregates recalculate.
 
 ```bash
-python -m rent_roll_processor.cli --deal deal.json -o "Rent_Roll_Exhibits_<Deal>_<Date>.xlsx"
+python -m rent_roll_processor.cli --deal deal.json
+# -> Birgo RR Exhibits - <Property Name>v<mm.dd.yy>.xlsx  (omit -o to use the convention)
 ```
 
 ### Step 3 — Confirmation summary

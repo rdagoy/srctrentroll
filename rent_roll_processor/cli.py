@@ -17,6 +17,7 @@ from datetime import date
 
 from .schema import Unit, RollConfig
 from .workbook import build_exhibits
+from .naming import output_filename
 
 
 def _load_config(d: dict) -> RollConfig:
@@ -49,7 +50,8 @@ def main(argv=None):
     p.add_argument("--deal", help="Single JSON with 'config' and 'units' keys.")
     p.add_argument("--units", help="JSON list of normalized unit dicts.")
     p.add_argument("--config", help="JSON deal config.")
-    p.add_argument("--out", "-o", required=True, help="Output .xlsx path.")
+    p.add_argument("--out", "-o", help="Output .xlsx path. Defaults to the "
+                   "Birgo convention: 'Birgo RR Exhibits - <Property>v<mm.dd.yy>.xlsx'.")
     args = p.parse_args(argv)
 
     if args.deal:
@@ -61,7 +63,8 @@ def main(argv=None):
         p.error("Provide --deal, or both --units and --config.")
         return 2
 
-    out = build_from_deal(deal, args.out)
+    out = args.out or output_filename(deal["config"]["property_name"])
+    out = build_from_deal(deal, out)
     print(f"Wrote {out}")
     return 0
 

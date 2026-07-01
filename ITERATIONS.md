@@ -53,8 +53,8 @@ future model tuning has the full context. Each decision notes *what* changed,
    letter A=1BD, B=2BD, C=3BD; trailing digit 1=1BA, 2=1.5BA; `R` suffix =
    renovated. Applied to **all** tabs. *(intake_station_jtown.py `STJT_MAP`)*
 
-9. **Output filename = modification date** — `Rent_Roll_Exhibits_<Deal>_mm.dd.yy`
-   where `mm.dd.yy` is today's date, not the rent-roll date. *(intake_station_jtown.py)*
+9. **Output filename = modification date** — `mm.dd.yy` is today's date, not the
+   rent-roll date. *(superseded by #16)*
 
 10. **Vacant market rent derived** — each vacant unit's market rent is set to the
     in-place (contract) rent of the most-recently-started lease of the same
@@ -106,6 +106,12 @@ future model tuning has the full context. Each decision notes *what* changed,
     *(derive.py `_apply_zero_rent_placeholder`)*
     - *Station J Town effect:* L30 (Jose Mendoza Hernandez, stjt2A1) contract
       0 → 990 (= market). All 21 vacants still verify.
+
+16. **Output filename convention** — every deal is named
+    `Birgo RR Exhibits - <Property Name>v<mm.dd.yy>.xlsx`, where `v` = "version"
+    followed by today's (file-modified) date. *(naming.py `output_filename`;
+    used by the CLI when `--out` is omitted and by the intake scripts)*
+    - e.g. `Birgo RR Exhibits - Station J Townv07.01.26.xlsx`
 
 ---
 

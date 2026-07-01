@@ -29,12 +29,12 @@ import openpyxl
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 from rent_roll_processor import Unit, RollConfig, build_exhibits  # noqa: E402
+from rent_roll_processor.naming import output_filename  # noqa: E402
 
+PROPERTY = "Station J Town"
 SRC = sys.argv[1] if len(sys.argv) > 1 else None
-# Default output name is stamped with TODAY's date (the file-modified date),
-# formatted mm.dd.yy, per the naming convention.
-_TODAY = date.today().strftime("%m.%d.%y")
-OUT = sys.argv[2] if len(sys.argv) > 2 else f"Rent_Roll_Exhibits_Station_J_Town_{_TODAY}.xlsx"
+# Default output name follows the Birgo convention, version-stamped with today.
+OUT = sys.argv[2] if len(sys.argv) > 2 else output_filename(PROPERTY)
 
 # Analyst-maintained unit-type -> (floor plan, beds, baths) decode.
 # Keyed by the base code (stjt prefix + trailing 'R' stripped).
