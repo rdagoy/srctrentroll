@@ -54,6 +54,10 @@ def load(path):
         status = str(ws.cell(r, 5).value or "").strip()
         tag = str(ws.cell(r, 2).value or "").strip()
         vacant = "vacant" in status.lower()   # Current/Notice -> occupied
+        # A "DOWN"-tagged unit is a non-revenue (offline) unit, not a rentable
+        # vacant: flag it as Down so expand_nonrev nets it to zero and drops it
+        # out of both the occupied and vacant buckets.
+        down = "down" in tag.lower()
         name = str(ws.cell(r, 4).value or "").strip()
         other = num(ws.cell(r, 14).value) or 0
         units.append(Unit.from_dict({
@@ -64,7 +68,7 @@ def load(path):
             "baths": baths,
             "sqft": num(ws.cell(r, 6).value),
             "tenant_name": name or ("Vacant" if vacant else None),
-            "occupancy": "Vacant" if vacant else "Occupied",
+            "occupancy": "Down" if down else ("Vacant" if vacant else "Occupied"),
             "market_rent": num(ws.cell(r, 7).value) or 0,             # G
             "contract_rent": 0 if vacant else (num(ws.cell(r, 8).value) or 0),  # H
             "other_income": other,
