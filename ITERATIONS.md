@@ -15,6 +15,7 @@ future model tuning has the full context. Each decision notes *what* changed,
 | 2 | Maven @ 806 | 29SC / RealPage (`Detailed` charge-ledger) | 05/15/26 | 51 units, 82.35% occ; ties to source totals (SF 38,376 / scheduled charges 58,021.30 = contract 52,035.45 + other 6,361 + conc −374.70) |
 | 3 | Colonial Pointe (556 + 558) | **scanned/image PDF** (Q1 2026, pages 2 & 4) | 03/31/26 | 88 units (65 + 23), 2 vacant; rent ties: 556 = 218,106 exact, 558 line items = 33,498 (source printed 33,500 — a $2 source artifact) |
 | 4 | Portage Towers | Berkadia manual Excel ('April' book) | 04/30/26 | 378 units (2 towers), 96.03% occ; ties **exactly** to source grand totals (SF 332,650 · Market 421,990 · Base 375,130 · Discount −20,680 · Other 35,241.95) |
+| 5 | Craigdell Gardens | AppFolio Rent Roll export | 07/13/26 | 97 units, 91.75% occ; ties **exactly** to source totals (Units 97 · SF 76,200 · Market 85,460 · Rent 79,227 · Monthly Charges 1,590) |
 
 ### Lessons (Colonial Pointe)
 * **Image-only PDF** → no extractable text; render pages to PNG (PyMuPDF) and
