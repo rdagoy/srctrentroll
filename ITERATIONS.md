@@ -205,6 +205,17 @@ count against the source's own total** (e.g. "Total Rentable Units").
 27. **Combined multi-building deal** — buildings 556 + 558 combined into one
     "Colonial Pointe" deal with building-prefixed unit ids (`556-201`).
 
+28. **Non-revenue from a PM status/tag** — a unit flagged offline by the source's
+    own status or tag column (not just its tenant name) is classified to the
+    matching non-revenue label in the intake, so `expand_nonrev` (#11) nets it to
+    zero (rent = market, offsetting negative concession) and drops it out of
+    **both** the occupied and vacant buckets — a down/offline unit is not a
+    rentable vacancy. *(intake normalizes the tag to a non-revenue status;
+    existing `_apply_nonrev`)*
+    - *Craigdell Gardens:* AppFolio tag `DOWN` on unit 004A → occupancy `Down`,
+      market 895 / contract 895 / concession −895 (net 0). Occupancy became
+      89 occ / 7 vac / 1 non-revenue; source totals still tie exactly.
+
 ---
 
 ## Open / future tuning items

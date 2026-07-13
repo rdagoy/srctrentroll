@@ -87,7 +87,7 @@ model units, large negative LTL, floor plans missing a UW market rent).
 | Mkt Rent (group) | sum of per-unit market rent over **all** units. |
 | Avg Mkt/Unit | mkt rent ÷ **total** units. Avg Mkt/SF = mkt rent ÷ total SF. |
 | Vacant market rent | recomputed to the **in-place rent of the most-recently-started lease of the same *unit type*** (strictly the unit-type code — not floor plan, not renovation status); fallback: that unit type's max in-place rent. Toggle `derive_vacant_market`. |
-| Non-revenue units | tenant named `admin`/`down`/`super`/`model` → status normalized to that label, **rent set = market rent**, and an offsetting **negative concession** added (net rent 0). Non-revenue units are not occupied. Toggle `expand_nonrev`. |
+| Non-revenue units | a unit named `admin`/`down`/`super`/`model` **or flagged offline by the source's own status/tag column** (e.g. an AppFolio `DOWN` tag) → status normalized to that label, **rent set = market rent**, and an offsetting **negative concession** added (net rent 0). Non-revenue units are excluded from **both** occupied and vacant. Toggle `expand_nonrev`. |
 | Lease-dates note | if the source has no lease-start dates, the Recent Leases tab shows "Lease dates not available" in the cell just below the Total row. |
 | Admin (non-revenue) units | units flagged (e.g. by a note) as storage / super / maintenance / office / leasing / employee / model are marked **Admin**: rent = market, offsetting negative concession, excluded from occupied. |
 | Vacant name | any tenant name containing "vacant" (e.g. "-- Vacant --") is collapsed to the literal **"Vacant"**. Toggle `normalize_vacant_name`. |
