@@ -16,6 +16,7 @@ future model tuning has the full context. Each decision notes *what* changed,
 | 3 | Colonial Pointe (556 + 558) | **scanned/image PDF** (Q1 2026, pages 2 & 4) | 03/31/26 | 88 units (65 + 23), 2 vacant; rent ties: 556 = 218,106 exact, 558 line items = 33,498 (source printed 33,500 — a $2 source artifact) |
 | 4 | Portage Towers | Berkadia manual Excel ('April' book) | 04/30/26 | 378 units (2 towers), 96.03% occ; ties **exactly** to source grand totals (SF 332,650 · Market 421,990 · Base 375,130 · Discount −20,680 · Other 35,241.95) |
 | 5 | Craigdell Gardens | AppFolio Rent Roll export | 07/13/26 | 97 units, 91.75% occ; ties **exactly** to source totals (Units 97 · SF 76,200 · Market 85,460 · Rent 79,227 · Monthly Charges 1,590) |
+| 6 | 20 Grand Ave | Yardi 'Rent Roll with Lease Charges' (charge ledger, mixed-use) | 07/30/26 | 98 units (2 commercial + 96 residential), 87.76% occ; ties **exactly** to source Summary + charge-code totals (Units 98 · Occ 86 · Vac 12 · SF 98,297.09 · Market 364,604.31 · Base 323,621.68 · Other 27,549.51 · Conc −23,424.74 · Lease charges 327,746.45) |
 
 ### Lessons (Colonial Pointe)
 * **Image-only PDF** → no extractable text; render pages to PNG (PyMuPDF) and
@@ -30,6 +31,29 @@ future model tuning has the full context. Each decision notes *what* changed,
   no other income / concession; **no lease-start/move-in** so Recent Leases is
   empty. Note-flagged units (Leasing Mgr Storage, Maintenance Super Apt) are
   not auto-detected — surface them for the analyst to classify.
+
+### Lessons (20 Grand Ave)
+* **Charge-ledger + multi-section report** (Yardi "Rent Roll with Lease
+  Charges"). Only the **"Current/Notice/Vacant Residents"** sections are the
+  as-of snapshot; the **"Future Residents/Applicants"** and **"Summary Groups"**
+  sections must be skipped or they double-count units and leak future lease
+  charges (an early parse attached a future commercial lease to a vacant unit).
+  Block boundaries are banner-aware (a unit block ends at the next unit-start
+  **or** the next section banner). Reconcile against the source's own
+  "Summary of Charges by Charge Code (Current/Notice Residents Only)".
+* **Mixed use** — 2 commercial units (`15SDCOMM`) alongside residential;
+  commercial base rent lives in `Retail`/`ComRent` codes, recoverables
+  (`Retax`, `CAM`) map to Other Income, and commercial has no BD/BA
+  (floor plan "Commercial", sorts last).
+* **Charge-code mapping** — base = `Rent`/`Retail`/`ComRent`; concessions =
+  `AmorConc`/`Amenconc`/`ParkConc`/`MIConc`/`RenConc`/`CommConc`/`Super`; the
+  rest itemized as Other Income. **Decision:** the `Super` (superintendent)
+  credit is a **concession** (netted), not an employee discount or a non-rev
+  unit — matches the source (Non-Rev Units = 0).
+* **Plan variants** — unit types carry a trailing `B`/`D` (likely a den layout,
+  e.g. `15SD2B2B` vs `15SD2B2D`); kept as distinct `unit_type` codes (so the
+  strict vacant-market comp stays correct) but grouped by BD/BA in the unit mix
+  (Studio / 1BR / 2BR / Commercial). Split them out if a finer mix is wanted.
 
 ### Lesson (Maven): unit-count sanity check
 Maven's Bldg-Unit ids came in **two formats** — `800-1A` and `CL - 806-1`. The
