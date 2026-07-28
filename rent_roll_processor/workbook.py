@@ -785,7 +785,10 @@ def build_exhibits(units: List[Unit], config: RollConfig, out_path: str) -> str:
         raise ValueError("No units to process.")
 
     # Exclude retail / commercial units so the exhibits reflect the residential
-    # rent roll only (before any derivation or aggregation).
+    # rent roll only.  Done first, before any derivation or aggregation, and by
+    # dropping the whole Unit -- so a retail unit contributes NOTHING to any
+    # section: not rent, and not its other income / concessions / employee
+    # discounts either (none of a retail unit's charges ride along).
     if config.exclude_retail:
         units = [u for u in units if not is_retail_unit(u)]
         if not units:

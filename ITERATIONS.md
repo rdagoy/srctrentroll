@@ -250,11 +250,19 @@ count against the source's own total** (e.g. "Total Rentable Units").
     only deals are unaffected since nothing matches). *(schema.py `is_retail`
     field + `is_retail_unit`; workbook.py `build_exhibits` filter; intakes set
     the flag)*
+    - **Excluding a retail unit removes ALL of its charges** — because the
+      whole `Unit` is dropped before aggregation, a retail unit contributes
+      nothing anywhere: not rent, and **not its other income, concessions, or
+      employee discounts** either. None of a retail unit's charges are added to
+      the Other Income / Concession / Emp-Discount sections (or their OneLineRR
+      columns and aggregates).
     - *20 Grand Ave:* the 2 commercial `15SDCOMM` units (DRIP MEDI SPA, EVOKE)
       are removed → exhibits show 96 residential units, 85 occ / 11 vac
-      (88.54%), SF 94,627, vs 98 units parsed from source. Source parse still
-      reconciles in full (98 units, 327,746.45 lease charges) as a fidelity
-      check.
+      (88.54%), SF 94,627, vs 98 units parsed from source. UNIT_1's ancillary
+      charges (Retax 1,365.68 + CAM 281.33) are **not** in Other Income:
+      residential other income = 25,902.50 (not the parsed 27,549.51). Source
+      parse still reconciles in full (98 units, 327,746.45 lease charges) as a
+      fidelity check.
 
 ---
 
