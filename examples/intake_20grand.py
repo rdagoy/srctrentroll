@@ -105,6 +105,7 @@ def load(path):
             "unit_id": str(ws.cell(r, 1).value).strip(),
             "unit_type": str(ws.cell(r, 2).value).strip(),
             "floor_plan": fp,
+            "is_retail": fp == "Commercial",     # 15SDCOMM = retail tenants
             "beds": beds,
             "baths": baths,
             "sqft": num(ws.cell(r, 3).value),
@@ -138,8 +139,17 @@ def main():
     occ = sum(1 for u in units if is_occupied(u, config.model_occupied))
     vac = sum(1 for u in units if u.occupancy == "Vac")
     print(f"Wrote {out}")
-    print(f"  units={len(units)}  occupied={occ}  vacant={vac}  occ%={occ/len(units):.2%}")
-    print("  reconcile (mine vs source Summary/charge totals):")
+    print(f"  units(parsed)={len(units)}  occupied={occ}  vacant={vac}  occ%={occ/len(units):.2%}")
+
+    # Retail excluded from the exhibits (exclude_retail default True).
+    res = [u for u in units if not u.is_retail]
+    r_occ = sum(1 for u in res if is_occupied(u, config.model_occupied))
+    r_vac = sum(1 for u in res if u.occupancy == "Vac")
+    print(f"  residential (in exhibits): units={len(res)}  occupied={r_occ}  "
+          f"vacant={r_vac}  occ%={r_occ/len(res):.2%}  "
+          f"(excluded {len(units)-len(res)} retail)")
+
+    print("  reconcile (parsed vs source Summary/charge totals):")
     contract = sum(u.contract_rent for u in units)
     conc = sum(u.concession for u in units)
     other = sum(u.other_income for u in units)

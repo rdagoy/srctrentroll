@@ -60,6 +60,23 @@ DEFAULT_STATUS_MAP: Dict[str, str] = {
 }
 
 
+def is_retail_unit(unit) -> bool:
+    """Is this a retail / commercial (non-residential) unit?
+
+    True if the intake flagged it (`Unit.is_retail`), or if any of its
+    descriptive fields name it as retail/commercial. Kept liberal so a source
+    that doesn't set the flag explicitly is still caught by its labels.
+    """
+    if getattr(unit, "is_retail", False):
+        return True
+    for attr in (getattr(unit, "floor_plan", None), getattr(unit, "unit_type", None),
+                 getattr(unit, "designation", None), getattr(unit, "reno_type", None)):
+        s = str(attr or "").lower()
+        if "retail" in s or "commercial" in s:
+            return True
+    return False
+
+
 def normalize_status(raw: Any, status_map: Optional[Dict[str, str]] = None) -> str:
     """Map a raw occupancy string to Occ / Vac / Model."""
     smap = status_map or DEFAULT_STATUS_MAP
@@ -145,6 +162,10 @@ class Unit:
     # OneLineRR tab renders one column per label. `other_income` stays the total.
     other_income_items: Dict[str, float] = field(default_factory=dict)
 
+    # True for retail / commercial (non-residential) units. Excluded from the
+    # exhibits when RollConfig.exclude_retail is set (the default).
+    is_retail: bool = False
+
     # --- Derived helpers -----------------------------------------------------
     @property
     def is_occupied(self) -> bool:
@@ -182,6 +203,9 @@ class Unit:
         for k in ("move_in", "lease_start", "lease_end", "move_out"):
             if k in data:
                 data[k] = _coerce_date(data[k])
+
+        if "is_retail" in data:
+            data["is_retail"] = bool(data["is_retail"])
 
         raw_occ = d.get("occupancy", d.get("occ"))
         data["occupancy"] = normalize_status(raw_occ, status_map)
@@ -230,6 +254,10 @@ class RollConfig:
         normalize_vacant_name: collapse any tenant name containing "vacant"
                        (e.g. "-- Vacant --", "VACANT") to the literal "Vacant".
                        Default True.
+        exclude_retail: drop retail / commercial units (see
+                       ``is_retail_unit``) from every exhibit and total, so the
+                       output reflects the residential rent roll only.
+                       Default True.
     """
     property_name: str
     as_of_date: date
@@ -243,6 +271,7 @@ class RollConfig:
     net_concession: bool = True
     zero_rent_placeholder: bool = True
     normalize_vacant_name: bool = True
+    exclude_retail: bool = True
 
     def __post_init__(self):
         self.as_of_date = _coerce_date(self.as_of_date) or self.as_of_date

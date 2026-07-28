@@ -20,7 +20,7 @@ from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from openpyxl.styles.colors import Color
 from openpyxl.utils import get_column_letter
 
-from .schema import Unit, RollConfig
+from .schema import Unit, RollConfig, is_retail_unit
 from . import aggregate as agg
 from . import derive
 
@@ -783,6 +783,13 @@ def build_exhibits(units: List[Unit], config: RollConfig, out_path: str) -> str:
     """Build the 5-tab exhibits workbook and save it to ``out_path``."""
     if not units:
         raise ValueError("No units to process.")
+
+    # Exclude retail / commercial units so the exhibits reflect the residential
+    # rent roll only (before any derivation or aggregation).
+    if config.exclude_retail:
+        units = [u for u in units if not is_retail_unit(u)]
+        if not units:
+            raise ValueError("No residential units left after excluding retail.")
 
     # Deal-level derivations (vacant market rent, non-revenue offset).
     units = derive.apply_deal_rules(units, config)

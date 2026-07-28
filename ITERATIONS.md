@@ -16,7 +16,7 @@ future model tuning has the full context. Each decision notes *what* changed,
 | 3 | Colonial Pointe (556 + 558) | **scanned/image PDF** (Q1 2026, pages 2 & 4) | 03/31/26 | 88 units (65 + 23), 2 vacant; rent ties: 556 = 218,106 exact, 558 line items = 33,498 (source printed 33,500 — a $2 source artifact) |
 | 4 | Portage Towers | Berkadia manual Excel ('April' book) | 04/30/26 | 378 units (2 towers), 96.03% occ; ties **exactly** to source grand totals (SF 332,650 · Market 421,990 · Base 375,130 · Discount −20,680 · Other 35,241.95) |
 | 5 | Craigdell Gardens | AppFolio Rent Roll export | 07/13/26 | 97 units, 91.75% occ; ties **exactly** to source totals (Units 97 · SF 76,200 · Market 85,460 · Rent 79,227 · Monthly Charges 1,590) |
-| 6 | 20 Grand Ave | Yardi 'Rent Roll with Lease Charges' (charge ledger, mixed-use) | 07/30/26 | 98 units (2 commercial + 96 residential), 87.76% occ; ties **exactly** to source Summary + charge-code totals (Units 98 · Occ 86 · Vac 12 · SF 98,297.09 · Market 364,604.31 · Base 323,621.68 · Other 27,549.51 · Conc −23,424.74 · Lease charges 327,746.45) |
+| 6 | 20 Grand Ave | Yardi 'Rent Roll with Lease Charges' (charge ledger, mixed-use) | 07/30/26 | Parsed 98 units (2 commercial + 96 residential); ties **exactly** to source Summary + charge-code totals (Units 98 · Occ 86 · Vac 12 · SF 98,297.09 · Market 364,604.31 · Base 323,621.68 · Other 27,549.51 · Conc −23,424.74 · Lease charges 327,746.45). Exhibits show **residential only** (96 units, 85 occ / 11 vac, 88.54%) after excluding retail (#29). |
 
 ### Lessons (Colonial Pointe)
 * **Image-only PDF** → no extractable text; render pages to PNG (PyMuPDF) and
@@ -239,6 +239,22 @@ count against the source's own total** (e.g. "Total Rentable Units").
     - *Craigdell Gardens:* AppFolio tag `DOWN` on unit 004A → occupancy `Down`,
       market 895 / contract 895 / concession −895 (net 0). Occupancy became
       89 occ / 7 vac / 1 non-revenue; source totals still tie exactly.
+
+29. **Exclude retail / commercial units** — retail/commercial (non-residential)
+    units are dropped from every exhibit and total, so the output is the
+    **residential** rent roll only. A unit is retail if the intake sets
+    `Unit.is_retail=True` or if its floor plan / unit type / designation /
+    reno-type contains "retail" or "commercial" (`schema.is_retail_unit`). The
+    filter runs at the top of `build_exhibits`, before derivation and
+    aggregation. Toggle `RollConfig.exclude_retail` (default True; residential-
+    only deals are unaffected since nothing matches). *(schema.py `is_retail`
+    field + `is_retail_unit`; workbook.py `build_exhibits` filter; intakes set
+    the flag)*
+    - *20 Grand Ave:* the 2 commercial `15SDCOMM` units (DRIP MEDI SPA, EVOKE)
+      are removed → exhibits show 96 residential units, 85 occ / 11 vac
+      (88.54%), SF 94,627, vs 98 units parsed from source. Source parse still
+      reconciles in full (98 units, 327,746.45 lease charges) as a fidelity
+      check.
 
 ---
 
