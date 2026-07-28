@@ -42,6 +42,24 @@ SOURCE FILE: attached
 
 ## 2. How a deal is processed
 
+### Step 0 — Portfolio check *(clarify first)*
+**Before doing anything else, determine whether the file(s) cover one property
+or a portfolio (multiple properties), and confirm with the analyst.** Portfolio
+tells are a "Property Groups"/"Selected Properties" header, per-property banner
+rows, repeated per-property subtotal + a grand-total row, or unit numbers that
+repeat across buildings.
+
+If it **is** a portfolio:
+- **Unit #** — make each unit number unique across the portfolio by scoping it
+  to its property (prefix with a short property code, e.g. `MLK-4`, `VAN-12`).
+- **Unit type** — scope the unit type per property as well, so the same type
+  code in two buildings does not merge (when the source carries no unit type,
+  the per-property code *is* the unit type / grouping key).
+- Confirm the delivery shape: **one combined workbook** (units scoped per
+  property) vs. **one workbook per property**.
+
+Only after that clarification is settled do we move to Step 1.
+
 ### Step 1 — Intake & normalization *(adaptive)*
 The source columns are inspected and each unit is mapped to the normalized
 `Unit` schema (Section 4). This step absorbs all format differences:

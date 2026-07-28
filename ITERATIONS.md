@@ -17,6 +17,7 @@ future model tuning has the full context. Each decision notes *what* changed,
 | 4 | Portage Towers | Berkadia manual Excel ('April' book) | 04/30/26 | 378 units (2 towers), 96.03% occ; ties **exactly** to source grand totals (SF 332,650 · Market 421,990 · Base 375,130 · Discount −20,680 · Other 35,241.95) |
 | 5 | Craigdell Gardens | AppFolio Rent Roll export | 07/13/26 | 97 units, 91.75% occ; ties **exactly** to source totals (Units 97 · SF 76,200 · Market 85,460 · Rent 79,227 · Monthly Charges 1,590) |
 | 6 | 20 Grand Ave | Yardi 'Rent Roll with Lease Charges' (charge ledger, mixed-use) | 07/30/26 | Parsed 98 units (2 commercial + 96 residential); ties **exactly** to source Summary + charge-code totals (Units 98 · Occ 86 · Vac 12 · SF 98,297.09 · Market 364,604.31 · Base 323,621.68 · Other 27,549.51 · Conc −23,424.74 · Lease charges 327,746.45). Exhibits show **residential only** (96 units, 85 occ / 11 vac, 88.54%) after excluding retail (#29). |
+| 7 | Greenville Portfolio (4 props) | AppFolio 'Rent Roll' (**portfolio**: 80-82 MLK · 190 Van Nostrand · 200 Dwight · 150 Stegman, Jersey City NJ) | 06/30/26 | Combined workbook; parsed 78 units, ties **exactly** to source grand total (Units 78 · Rent 93,870.80). Unit #/type scoped per property (#30, MLK-/VAN-/DWT-/STG-). Exhibits show **residential only** (73 units, 69 occ, 94.52%) after excluding 5 commercial `Comm*` units ($9,718/mo, #29). No unit-type/SF/bed-bath/market cols in source → grouped by property, market = in-place placeholder. |
 
 ### Lessons (Colonial Pointe)
 * **Image-only PDF** → no extractable text; render pages to PNG (PyMuPDF) and
@@ -263,6 +264,23 @@ count against the source's own total** (e.g. "Total Rentable Units").
       residential other income = 25,902.50 (not the parsed 27,549.51). Source
       parse still reconciles in full (98 units, 327,746.45 lease charges) as a
       fidelity check.
+
+30. **Portfolio check (clarify first) + per-property scoping** — a new **Step 0**
+    in the SOP: before processing any file(s), determine whether it is one
+    property or a **portfolio** (multiple properties) and confirm with the
+    analyst. Portfolio tells: a "Property Groups"/"Selected Properties" header,
+    per-property banner rows, per-property subtotals + a grand-total row, or
+    unit numbers that repeat across buildings. If it **is** a portfolio, scope
+    each unit to its property: **unit #** prefixed with a short property code
+    (unique portfolio-wide) and **unit type** scoped per property (when the
+    source has no unit type, the per-property code *is* the grouping key). Also
+    confirm the delivery shape (one combined workbook vs. one per property).
+    *(PROCESS.md §2 Step 0; per-deal intake does the scoping — see
+    `examples/intake_greenville.py`)*
+    - *Greenville Portfolio:* "Property Groups: Greenville Portfolio" with 4
+      banners → one combined workbook, unit ids `MLK-4`/`VAN-12`/… and unit
+      type = property code, unit mix grouped by property. Ties to the 78-unit /
+      93,870.80 source grand total.
 
 ---
 
