@@ -82,7 +82,8 @@ def main():
         print("usage: intake_nova.py <source.xlsx> [out.xlsx]")
         return 2
     units = load(src)
-    config = RollConfig(property_name=PROPERTY, as_of_date=AS_OF, uw_market_rents={})
+    config = RollConfig(property_name=PROPERTY, as_of_date=AS_OF, uw_market_rents={},
+                        market_from_inplace=True)   # source has no market column
     build_exhibits(units, config, out)
 
     from rent_roll_processor.aggregate import is_occupied

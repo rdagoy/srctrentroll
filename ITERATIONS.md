@@ -17,8 +17,8 @@ future model tuning has the full context. Each decision notes *what* changed,
 | 4 | Portage Towers | Berkadia manual Excel ('April' book) | 04/30/26 | 378 units (2 towers), 96.03% occ; ties **exactly** to source grand totals (SF 332,650 · Market 421,990 · Base 375,130 · Discount −20,680 · Other 35,241.95) |
 | 5 | Craigdell Gardens | AppFolio Rent Roll export | 07/13/26 | 97 units, 91.75% occ; ties **exactly** to source totals (Units 97 · SF 76,200 · Market 85,460 · Rent 79,227 · Monthly Charges 1,590) |
 | 6 | 20 Grand Ave | Yardi 'Rent Roll with Lease Charges' (charge ledger, mixed-use) | 07/30/26 | Parsed 98 units (2 commercial + 96 residential); ties **exactly** to source Summary + charge-code totals (Units 98 · Occ 86 · Vac 12 · SF 98,297.09 · Market 364,604.31 · Base 323,621.68 · Other 27,549.51 · Conc −23,424.74 · Lease charges 327,746.45). Exhibits show **residential only** (96 units, 85 occ / 11 vac, 88.54%) after excluding retail (#29). |
-| 7 | Greenville Portfolio (4 props) | AppFolio 'Rent Roll' (**portfolio**: 80-82 MLK · 190 Van Nostrand · 200 Dwight · 150 Stegman, Jersey City NJ) | 06/30/26 | Combined workbook; parsed 78 units, ties **exactly** to source grand total (Units 78 · Rent 93,870.80). Unit #/type scoped per property (#30, MLK-/VAN-/DWT-/STG-). Exhibits show **residential only** (73 units, 69 occ, 94.52%) after excluding 5 commercial `Comm*` units ($9,718/mo, #29). No unit-type/SF/bed-bath/market cols in source → grouped by property, market = in-place placeholder. |
-| 8 | Nova | AppFolio 'Rent Roll' (single property, academic-year lease-up) | 09/01/26 | 83 units, 90.36% occ; ties **exactly** to source grand total (Units 83 · SF 71,567 · Rent 113,985). Unit type "<n>bed/<m>bath" / "Studio Apartment" decoded to BD/BA; by-the-bed split ids (205 A/B). `Pending` (committed lease w/ rent) counts occupied. No market col → market = in-place placeholder. |
+| 7 | Greenville Portfolio (4 props) | AppFolio 'Rent Roll' (**portfolio**: 80-82 MLK · 190 Van Nostrand · 200 Dwight · 150 Stegman, Jersey City NJ) | 06/30/26 | Combined workbook; parsed 78 units, ties **exactly** to source grand total (Units 78 · Rent 93,870.80). Unit #/type scoped per property (#30, MLK-/VAN-/DWT-/STG-). Exhibits show **residential only** (73 units, 69 occ, 94.52%) after excluding 5 commercial `Comm*` units ($9,718/mo, #29). No unit-type/SF/bed-bath/market cols in source → grouped by property, market = max in-place of property (#31). |
+| 8 | Nova | AppFolio 'Rent Roll' (single property, academic-year lease-up) | 09/01/26 | 83 units, 90.36% occ; ties **exactly** to source grand total (Units 83 · SF 71,567 · Rent 113,985). Unit type "<n>bed/<m>bath" / "Studio Apartment" decoded to BD/BA; by-the-bed split ids (205 A/B). `Pending` (committed lease w/ rent) counts occupied. No market col → market = max in-place of unit type (#31); Unit-Mix market total 164,440 vs in-place 113,985. |
 
 ### Lessons (Colonial Pointe)
 * **Image-only PDF** → no extractable text; render pages to PNG (PyMuPDF) and
@@ -282,6 +282,24 @@ count against the source's own total** (e.g. "Total Rentable Units").
       banners → one combined workbook, unit ids `MLK-4`/`VAN-12`/… and unit
       type = property code, unit mix grouped by property. Ties to the 78-unit /
       93,870.80 source grand total.
+
+31. **Market rent from in-place (no-market-column fallback)** — when a source
+    carries **no market/asking-rent column**, set every unit's market rent to
+    the **max in-place (contract) rent of the same unit type** (an "achievable
+    market" proxy), instead of echoing each unit's own in-place. Makes LTL
+    meaningful and the Unit-Mix market reflect a real achievable rent. A unit
+    type with no occupied comp keeps its existing value. When on it **supersedes**
+    the vacant-only derivation (#10/#14) since it already prices vacants. Toggle
+    `RollConfig.market_from_inplace` (default False; the intake sets it True only
+    when the source lacks a market column, so deals with real market rents are
+    untouched). *(derive.py `_apply_market_from_inplace`, gated in
+    `apply_deal_rules`)*
+    - *Nova:* market total 113,985-echo → **164,440** (Studio 1,350 · 1BD 1,650 ·
+      2BD/2BA 2,100 · 3BD 2,460 max-of-type); in-place unchanged (113,985).
+    - *Greenville Portfolio:* same rule (market per building = that property's
+      top in-place).
+    - Note: `max` of type is the current basis; switch to `avg` by changing the
+      one `max(rents)` line if a softer market view is wanted.
 
 ---
 

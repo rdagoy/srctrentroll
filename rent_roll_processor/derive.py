@@ -76,6 +76,24 @@ def _apply_vacant_market(units: List[Unit]) -> None:
             # else: no occupied comp -> leave the source market rent as-is
 
 
+def _apply_market_from_inplace(units: List[Unit]) -> None:
+    """Set every unit's market rent = max in-place rent of the same unit type.
+
+    Used when the source has no market/asking-rent column: the highest occupied
+    in-place (contract) rent within a unit type is the best "achievable market"
+    proxy.  A unit type with no occupied comp keeps its existing market value.
+    """
+    from collections import defaultdict
+    by_type = defaultdict(list)
+    for u in units:
+        if u.occupancy == OCC and u.contract_rent:
+            by_type[_comp_key(u)].append(u.contract_rent)
+    for u in units:
+        rents = by_type.get(_comp_key(u))
+        if rents:
+            u.market_rent = max(rents)
+
+
 def _apply_zero_rent_placeholder(units: List[Unit]) -> None:
     """Occupied unit carrying $0 contract rent -> use market rent as placeholder.
 
@@ -103,7 +121,11 @@ def apply_deal_rules(units: List[Unit], config: RollConfig) -> List[Unit]:
         _apply_vacant_name(out)
     if config.expand_nonrev:
         _apply_nonrev(out, config)
-    if config.derive_vacant_market:
+    if config.market_from_inplace:
+        # No source market column: derive market for ALL units from in-place.
+        # Supersedes the vacant-only derivation (it already covers vacants).
+        _apply_market_from_inplace(out)
+    elif config.derive_vacant_market:
         _apply_vacant_market(out)
     if config.zero_rent_placeholder:
         _apply_zero_rent_placeholder(out)

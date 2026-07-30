@@ -258,6 +258,14 @@ class RollConfig:
                        ``is_retail_unit``) from every exhibit and total, so the
                        output reflects the residential rent roll only.
                        Default True.
+        market_from_inplace: for sources that carry NO market/asking-rent
+                       column, set every unit's market rent to the max in-place
+                       (contract) rent of the same unit type (an "achievable
+                       market" proxy).  When on it supersedes the vacant-only
+                       derivation (it already covers vacants).  Default False;
+                       the intake sets it True only when the source lacks a
+                       market column, so deals with real market rents are
+                       unaffected.
     """
     property_name: str
     as_of_date: date
@@ -272,6 +280,7 @@ class RollConfig:
     zero_rent_placeholder: bool = True
     normalize_vacant_name: bool = True
     exclude_retail: bool = True
+    market_from_inplace: bool = False
 
     def __post_init__(self):
         self.as_of_date = _coerce_date(self.as_of_date) or self.as_of_date
