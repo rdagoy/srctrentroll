@@ -303,6 +303,23 @@ count against the source's own total** (e.g. "Total Rentable Units").
     - Note: `max` of type is the current basis; switch to `avg` by changing the
       one `max(rents)` line if a softer market view is wanted.
 
+32. **Verbatim source charge codes on the OneLineRR detail columns** — the
+    Other Income, Concessions, **and** Employee Discounts sections each render
+    **one detail column per distinct source line item**, using the **exact
+    source charge code / name as the column header** (no friendly renaming), so
+    the exhibit mirrors the source ledger. Previously only Other Income broke
+    out per item; Concessions and Employee Discounts collapsed to a single
+    hard-labeled column. Now generalized: intakes pass `other_income_items` /
+    `concession_items` / `emp_discount_items` (`{code: amount}`); each section's
+    total column (`R`/`S`/`T`) sums its own detail block. **Backward compatible**
+    — a section with no per-code dict falls back to the single aggregate column
+    (`Concession` / `Employee Discount`), so prior deals render unchanged. The
+    pet-leftmost rule (#) still applies within Other Income. *(schema.py
+    `concession_items`/`emp_discount_items`; workbook.py `_build_onelinerr`)*
+    - *Saddlebrook:* Other Income columns are now `conpetrt` (pet, leftmost),
+      `conpest`, `contfinc`, `coninsu`, `congarg`, `conliab`; Employee Discounts
+      column is `conempl`. Applied to this deal and all deals going forward.
+
 ---
 
 ## Open / future tuning items

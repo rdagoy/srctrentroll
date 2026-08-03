@@ -158,9 +158,15 @@ class Unit:
     lease_end: Optional[date] = None      # AB
     move_out: Optional[date] = None       # OneLineRR "Move Out" (expected/actual)
 
-    # Optional per-line-item breakdown of other income ({label: amount}); the
-    # OneLineRR tab renders one column per label. `other_income` stays the total.
+    # Optional per-line-item breakdowns ({label: amount}); the OneLineRR tab
+    # renders one column per label, using the label VERBATIM as the column
+    # header.  Pass the exact source charge code / line-item name as the label
+    # (no renaming), so the exhibit mirrors the source (#32).  The scalar
+    # `other_income` / `concession` / `emp_discount` stay the section totals; if
+    # a breakdown dict is empty the OneLineRR falls back to one aggregate column.
     other_income_items: Dict[str, float] = field(default_factory=dict)
+    concession_items: Dict[str, float] = field(default_factory=dict)
+    emp_discount_items: Dict[str, float] = field(default_factory=dict)
 
     # True for retail / commercial (non-residential) units. Excluded from the
     # exhibits when RollConfig.exclude_retail is set (the default).

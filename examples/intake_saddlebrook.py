@@ -14,11 +14,13 @@ Columns: A Unit | B Unit Type | C Unit Sq Ft | D Resident | E Name
   | J Other Deposit | K Move In | L Lease Expiration | M Move Out | N Balance
 
 Charge-code mapping (validated against the source's current-only charge summary,
-total 236,899):
+total 236,899).  Per #32, the exact source charge code is used verbatim as the
+OneLineRR column header for every other-income / concession / employee-discount
+line item (no renaming):
   * BASE (contract rent) = conrent
   * EMPLOYEE DISCOUNT     = conempl  (negative; kept separate, NOT netted)
-  * OTHER INCOME          = conpest (Pest), contfinc (Tech Fee), coninsu
-      (Insurance), congarg (Garage), conpetrt (Pet Rent), conliab (Liability)
+  * OTHER INCOME          = conpest, contfinc, coninsu, congarg, conpetrt
+      (pet -> leftmost), conliab
   * no concession codes present.
 
 Unit types are plan codes ("stc_a1".."stc_b4", "stc_eh") with no embedded
@@ -42,8 +44,6 @@ AS_OF = date(2026, 7, 5)           # source header "As Of = 07/05/2026"
 
 BASE = {"conrent"}
 EMP = {"conempl"}                  # employee discount (negative)
-OI_NAMES = {"conpest": "Pest", "contfinc": "Tech Fee", "coninsu": "Insurance",
-            "congarg": "Garage", "conpetrt": "Pet Rent", "conliab": "Liability"}
 BANNERS = {"Current/Notice/Vacant Residents", "Future Residents/Applicants",
            "Summary Groups"}
 
@@ -100,9 +100,10 @@ def load(path):
         vacant = name.upper() == "VACANT" or resid.upper() == "VACANT" or not name
 
         contract = sum(v for k, v in charges.items() if k in BASE)
-        emp = sum(v for k, v in charges.items() if k in EMP)
-        oi_items = {OI_NAMES.get(k, k): v for k, v in charges.items()
-                    if k not in BASE and k not in EMP}
+        # exact source charge codes as line-item labels (#32)
+        emp_items = {k: v for k, v in charges.items() if k in EMP}
+        oi_items = {k: v for k, v in charges.items() if k not in BASE and k not in EMP}
+        emp = sum(emp_items.values())
 
         units.append(Unit.from_dict({
             "unit_id": str(ws.cell(r, 1).value).strip(),
@@ -116,6 +117,7 @@ def load(path):
             "market_rent": num(ws.cell(r, 6).value) or 0,     # F
             "contract_rent": 0 if vacant else contract,       # sum(BASE)
             "emp_discount": 0 if vacant else emp,             # conempl (negative)
+            "emp_discount_items": {} if vacant else emp_items,
             "other_income": sum(oi_items.values()),
             "other_income_items": oi_items,
             "move_in": ws.cell(r, 11).value,

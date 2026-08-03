@@ -678,51 +678,62 @@ def _build_onelinerr(wb, units, config):
     # Dynamic Other Income detail columns: one per distinct line item across
     # units (falls back to a single "Other Income" column if no per-item
     # breakdown was provided but a total exists).
-    oi_names = []
-    for u in units:
-        for name in (u.other_income_items or {}):
-            if name not in oi_names:
-                oi_names.append(name)
+    L = get_column_letter
+
+    def _item_names(items_attr):
+        names = []
+        for u in units:
+            for name in (getattr(u, items_attr) or {}):
+                if name not in names:
+                    names.append(name)
+        return names
+
+    # One detail column per distinct source line-item / charge code, using the
+    # code VERBATIM as the header (#32).  Each section falls back to a single
+    # aggregate column when the intake supplies no per-code breakdown.
+    oi_names = _item_names("other_income_items")
     if not oi_names and any(u.other_income for u in units):
         oi_names = ["Other Income"]
     # Pet-related charges always sit leftmost in the Other Income section
     # (stable: relative order within each group preserved).
     pet = [n for n in oi_names if "pet" in n.lower()]
     oi_names = pet + [n for n in oi_names if n not in pet]
-    oi_cols = {name: OLR_OI_START + i for i, name in enumerate(oi_names)}
 
-    has_conc = any(u.concession for u in units)
-    has_emp = any(u.emp_discount for u in units)
-    L = get_column_letter
-    conc_col = (max(oi_cols.values()) + 2) if oi_cols else OLR_OI_START
-    emp_col = conc_col + 2
+    conc_names = _item_names("concession_items")
+    has_conc = any(u.concession for u in units) or bool(conc_names)
+    if not conc_names and has_conc:
+        conc_names = ["Concession"]
+    emp_names = _item_names("emp_discount_items")
+    has_emp = any(u.emp_discount for u in units) or bool(emp_names)
+    if not emp_names and has_emp:
+        emp_names = ["Employee Discount"]
+
+    # Assign columns left-to-right, one blank column between sections.
+    oi_cols = {name: OLR_OI_START + i for i, name in enumerate(oi_names)}
+    cursor = (max(oi_cols.values()) + 2) if oi_cols else OLR_OI_START
+    conc_cols = {name: cursor + i for i, name in enumerate(conc_names)} if has_conc else {}
+    cursor = (max(conc_cols.values()) + 2) if conc_cols else cursor
+    emp_cols = {name: cursor + i for i, name in enumerate(emp_names)} if has_emp else {}
 
     _c(ws, f"Y{GROUP_HDR}", "Rent", font=OLR_SMB)
-    if oi_cols:
-        _c(ws, f"{L(OLR_OI_START)}{GROUP_HDR}", "Other Income", font=OLR_SMB)
-    if has_conc:
-        _c(ws, f"{L(conc_col)}{GROUP_HDR}", "Concessions", font=OLR_SMB)
-    if has_emp:
-        _c(ws, f"{L(emp_col)}{GROUP_HDR}", "Employee Discounts", font=OLR_SMB)
+    for cols, title in ((oi_cols, "Other Income"), (conc_cols, "Concessions"),
+                        (emp_cols, "Employee Discounts")):
+        if cols:
+            _c(ws, f"{L(min(cols.values()))}{GROUP_HDR}", title, font=OLR_SMB)
     for letter, title in OLR_DATA_HDR:
         _c(ws, f"{letter}{DATA_HDR}", title, font=OLR_SMB)
-    for name, col in oi_cols.items():
-        _c(ws, f"{L(col)}{DATA_HDR}", name, font=OLR_SMB)
-        ws.column_dimensions[L(col)].width = 13.0
-    if has_conc:
-        _c(ws, f"{L(conc_col)}{DATA_HDR}", "Concession", font=OLR_SMB)
-        ws.column_dimensions[L(conc_col)].width = 13.0
-    if has_emp:
-        _c(ws, f"{L(emp_col)}{DATA_HDR}", "Employee Discount", font=OLR_SMB)
-        ws.column_dimensions[L(emp_col)].width = 13.0
+    for cols in (oi_cols, conc_cols, emp_cols):
+        for name, col in cols.items():
+            _c(ws, f"{L(col)}{DATA_HDR}", name, font=OLR_SMB)   # exact source code
+            ws.column_dimensions[L(col)].width = 13.0
 
     oi_first = L(OLR_OI_START)
     oi_last = L(max(oi_cols.values())) if oi_cols else oi_first
-    conc_letter = L(conc_col)
-    emp_letter = L(emp_col)
+    conc_first, conc_last = (L(min(conc_cols.values())), L(max(conc_cols.values()))) if conc_cols else (None, None)
+    emp_first, emp_last = (L(min(emp_cols.values())), L(max(emp_cols.values()))) if emp_cols else (None, None)
     # rightmost used column, for the full-row vacant highlight
     row_end_col = max([25] + list(oi_cols.values())
-                      + ([conc_col] if has_conc else []) + ([emp_col] if has_emp else []))
+                      + list(conc_cols.values()) + list(emp_cols.values()))
 
     for idx, u in enumerate(units):
         r = DS + idx
@@ -749,22 +760,24 @@ def _build_onelinerr(wb, units, config):
             _c(ws, f"P{r}", u.lease_end, font=OLR_SM, nf=NF_DATE, halign="right")
         if u.move_out:
             _c(ws, f"Q{r}", u.move_out, font=OLR_SM, nf=NF_DATE, halign="right")
-        # Other Income totals over the dynamic detail columns.
-        r_formula = f"=SUM({oi_first}{r}:{oi_last}{r})" if oi_cols else 0
-        _c(ws, f"R{r}", r_formula, font=OLR_SM, nf="#,##0.00", halign="right")
-        _c(ws, f"S{r}", f"={conc_letter}{r}" if has_conc else 0, font=OLR_SM, nf="#,##0.00", halign="right")
-        _c(ws, f"T{r}", f"={emp_letter}{r}" if has_emp else 0, font=OLR_SM, nf="#,##0.00", halign="right")
+        # Section totals sum their own dynamic detail columns.
+        _c(ws, f"R{r}", f"=SUM({oi_first}{r}:{oi_last}{r})" if oi_cols else 0,
+           font=OLR_SM, nf="#,##0.00", halign="right")
+        _c(ws, f"S{r}", f"=SUM({conc_first}{r}:{conc_last}{r})" if conc_cols else 0,
+           font=OLR_SM, nf="#,##0.00", halign="right")
+        _c(ws, f"T{r}", f"=SUM({emp_first}{r}:{emp_last}{r})" if emp_cols else 0,
+           font=OLR_SM, nf="#,##0.00", halign="right")
         _c(ws, f"Y{r}", _money(u.contract_rent), font=OLR_SM, nf="#,##0.00", halign="right")
-        # Per-line-item Other Income values.
-        items = u.other_income_items or {}
-        for name, col in oi_cols.items():
-            val = items.get(name) if items else (u.other_income if name == "Other Income" else 0)
-            if val:
-                _c(ws, f"{L(col)}{r}", _money(val), font=OLR_SM, nf="#,##0.00", halign="right")
-        if has_conc and u.concession:
-            _c(ws, f"{conc_letter}{r}", _money(u.concession), font=OLR_SM, nf="#,##0.00", halign="right")
-        if has_emp and u.emp_discount:
-            _c(ws, f"{emp_letter}{r}", _money(u.emp_discount), font=OLR_SM, nf="#,##0.00", halign="right")
+        # Per-line-item detail values (exact source code per column).
+        for cols, items_attr, total_attr, fallback in (
+                (oi_cols, "other_income_items", "other_income", "Other Income"),
+                (conc_cols, "concession_items", "concession", "Concession"),
+                (emp_cols, "emp_discount_items", "emp_discount", "Employee Discount")):
+            items = getattr(u, items_attr) or {}
+            for name, col in cols.items():
+                val = items.get(name) if items else (getattr(u, total_attr) if name == fallback else 0)
+                if val:
+                    _c(ws, f"{L(col)}{r}", _money(val), font=OLR_SM, nf="#,##0.00", halign="right")
         # Vacant units: highlight the whole data row (yellow fill, blue font).
         if u.occupancy == "Vac":
             for col in range(1, row_end_col + 1):
