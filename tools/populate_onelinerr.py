@@ -96,6 +96,9 @@ def set_num(xml, ref, val):
     return _set(xml, ref, '<v>%s</v>' % val)
 def set_date(xml, ref, d):
     return _set(xml, ref, '<v>%d</v>' % _serial(d))
+def set_formula(xml, ref, formula):
+    # writes a plain (non-shared) formula, clearing any cached value
+    return _set(xml, ref, '<f>%s</f>' % _esc(formula), "str")
 
 # --- source parsing ---------------------------------------------------------
 def parse_source(path, cfg):
@@ -179,7 +182,7 @@ def populate(source, out, cfg=CONFIG, template=TEMPLATE):
     s = z.read(ONELINE_SHEET_XML).decode("utf-8")
     wbx = z.read(WORKBOOK_XML).decode("utf-8")
 
-    # property header
+    # property header block (C67 name, C68 address, C69 city/state/zip, C70 as-of)
     s = set_text(s, "C67", cfg["PROPERTY"])
     if cfg.get("ADDRESS"): s = set_text(s, "C68", cfg["ADDRESS"])
     if cfg.get("CITY"):    s = set_text(s, "C69", cfg["CITY"])
@@ -188,6 +191,8 @@ def populate(source, out, cfg=CONFIG, template=TEMPLATE):
     # floor-plan lookup table (rows 5..)
     for i, fp in enumerate(fps):
         r = FP_ROW0 + i
+        # link the summary property-name column to the header cell C67
+        s = set_formula(s, "B%d" % r, "$C$67")
         s = set_text(s, "C%d" % r, fp["label"])
         s = set_text(s, "D%d" % r, fp["unittype"])
         if fp.get("bd") is not None: s = set_num(s, "E%d" % r, fp["bd"])
@@ -223,15 +228,36 @@ def populate(source, out, cfg=CONFIG, template=TEMPLATE):
         for it in zin.infolist():
             zo.writestr(it, sub.get(it.filename, zin.read(it.filename)))
 
-    # reconcile
-    def tot(key):
-        return sum(u[key] for u in units if isinstance(u[key], (int, float)))
-    report = dict(
-        units=len(units), floor_plans=len(fps),
-        vacant=sum(1 for u in units if str(u["tenant"]).strip().lower() in vac),
-        rent_total=tot("rent"), other_total=tot("other"), sqft_total=tot("sqft"),
-    )
-    return report
+    # reconcile source vs what was written back to the workbook
+    return verify_written(out, units, cfg, len(fps))
+
+
+def verify_written(out, units, cfg, floor_plans=None):
+    """Re-open the output and confirm the written OneLineRR inputs match the
+    parsed source (counts + column totals). Powers the 'does it match the
+    source?' confirmation gate. Returns a report with per-field ok flags."""
+    import openpyxl
+    ws = openpyxl.load_workbook(out, data_only=True)["OneLineRR"]
+    COL = dict(unit=10, unittype=11, sqft=12, tenant=13, rent=27, other=30)  # J,K,L,M,AA,AD
+    def src_sum(key):
+        return round(sum(u[key] for u in units if isinstance(u[key], (int, float))), 2)
+    def wb_sum(c):
+        return round(sum(ws.cell(r, c).value for r in range(DATA_ROW0, DATA_ROW0 + len(units))
+                         if isinstance(ws.cell(r, c).value, (int, float))), 2)
+    vac = set(t.strip().lower() for t in cfg["VACANT_TOKENS"])
+    checks = {
+        "units":       (len(units), sum(1 for r in range(DATA_ROW0, DATA_ROW0 + len(units))
+                                        if ws.cell(r, COL["unit"]).value not in (None, ""))),
+        "vacant":      (sum(1 for u in units if str(u["tenant"]).strip().lower() in vac),
+                        sum(1 for r in range(DATA_ROW0, DATA_ROW0 + len(units))
+                            if str(ws.cell(r, COL["tenant"]).value).strip().lower() in vac)),
+        "rent_total":  (src_sum("rent"), wb_sum(COL["rent"])),
+        "other_total": (src_sum("other"), wb_sum(COL["other"])),
+        "sqft_total":  (src_sum("sqft"), wb_sum(COL["sqft"])),
+    }
+    ok = {k: (a == b) for k, (a, b) in checks.items()}
+    return dict(units=len(units), floor_plans=floor_plans,
+                checks=checks, ok=ok, all_ok=all(ok.values()))
 
 def main(argv=None):
     ap = argparse.ArgumentParser(description=__doc__)
@@ -241,9 +267,16 @@ def main(argv=None):
     a = ap.parse_args(argv)
     rep = populate(a.source, a.out, CONFIG, a.template)
     print("Wrote", a.out)
-    for k, v in rep.items():
-        print("  %-12s %s" % (k, ("{:,.2f}".format(v) if isinstance(v, float) else v)))
-    return 0
+    print("  units       ", rep["units"])
+    print("  floor_plans ", rep["floor_plans"])
+    print("  %-14s %14s %14s  %s" % ("check", "source", "workbook", "match"))
+    for k, (src, wb) in rep["checks"].items():
+        fmt = lambda x: "{:,.2f}".format(x) if isinstance(x, float) else str(x)
+        print("  %-14s %14s %14s  %s" % (k, fmt(src), fmt(wb),
+                                         "OK" if rep["ok"][k] else "*** MISMATCH ***"))
+    print("\nRECONCILED — confirm every 'source' equals 'workbook' above before hand-off."
+          if rep["all_ok"] else "\n*** MISMATCH — do not deliver until resolved. ***")
+    return 0 if rep["all_ok"] else 1
 
 if __name__ == "__main__":
     sys.exit(main())

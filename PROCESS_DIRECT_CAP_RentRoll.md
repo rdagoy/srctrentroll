@@ -29,6 +29,8 @@ than SRCT's base `UW_Template_base.xlsx`: data rows start at row 99, property na
   `J–W` are COUNTIFS/SUMIFS rollups (do not edit). The derived columns `D–I` on each data
   row INDEX/MATCH into this table on (unit type × property).
 - **Property header:** `C67` name, `C68` address, `C69` city/state/zip, `C70` as-of date.
+- **Summary property link:** the summary property-name column `B5:B61` is set to `=$C$67`,
+  so it always reflects the header name entered in `C67` (single-property deals).
 - **Reconciliation:** `K62='HVP RR'!B526` compares the SUMMARY unit count against the raw
   source footer. Re-point this to the new source when the source tab is renamed.
 
@@ -61,27 +63,37 @@ Derived by template formula (do not write): `A` Property, `B` counter, `C` Occup
    Renovated flag (auto-default is `No`/`Classic`; the source's amenity/renovation
    signals are **not** auto-classified).
 
-## How to run
-```
-python tools/populate_onelinerr.py  <SOURCE_RR.xlsx>  --out "<Deal> - UW Model.xlsx"
-```
-Per deal, edit the `CONFIG` block at the top of `populate_onelinerr.py`:
-- `COLMAP` — match your export's header text (case-insensitive). Set a field to `None`
-  to leave that OneLineRR column blank.
-- `PROPERTY` / `ADDRESS` / `CITY` / `ASOF` — header block.
-- `FLOOR_PLANS` — leave `None` to auto-derive from the source (BD/BA parsed from
-  `BD_BA_COL`); or supply an explicit list to set labels, BD/BA, and Renovated by hand.
-
-The engine writes only `OneLineRR` and `workbook.xml` (surgical XML edit), so charts,
-drawings, and validations are preserved. `fullCalcOnLoad` is set so every formula
-recomputes when Excel opens the file.
+## Run sequence (every deal)
+1. **Receive the source file** (provided separately, per deal).
+2. Set the `CONFIG` block in `populate_onelinerr.py`:
+   - `COLMAP` — match your export's header text (case-insensitive). Set a field to `None`
+     to leave that OneLineRR column blank.
+   - `PROPERTY` / `ADDRESS` / `CITY` / `ASOF` — the header block written to **C67 / C68 /
+     C69 / C70**.
+   - `FLOOR_PLANS` — leave `None` to auto-derive from the source (BD/BA parsed from
+     `BD_BA_COL`); or supply an explicit list to set labels, BD/BA, and Renovated by hand.
+3. **Run the engine:**
+   ```
+   python tools/populate_onelinerr.py  <SOURCE_RR.xlsx>  --out "<Deal> - UW Model.xlsx"
+   ```
+   It writes the data rows, the floor-plan table, the property block (C67:C70), and links
+   `B5:B61` to `=$C$67`. Only `OneLineRR` and `workbook.xml` are touched (surgical XML
+   edit), so charts, drawings, and validations are preserved; `fullCalcOnLoad` makes every
+   formula recompute on open.
+4. **CONFIRMATION GATE — clarify with the client first.** Before the file is considered
+   final, present the reconciliation table the engine prints (source vs. workbook: units,
+   vacant, rent total, other-income total, sqft total) and **confirm with the client that
+   every gathered value matches the source.** Do not hand off until this is confirmed.
+   Any `*** MISMATCH ***` must be resolved first.
 
 ## Verification (must pass before hand-off)
-The engine prints a reconciliation report — check it against the source footer:
-`units`, `floor_plans`, `vacant`, `rent_total`, `other_total`, `sqft_total`.
-In the workbook: OneLineRR Check row all TRUE / Diff row all 0. Spot-check vacant and
-any placeholder rows. Confirm every unit type resolved (no `#N/A` in `D–I`), which
-means every source unit type has a matching floor-plan table row.
+The engine reconciles the written-back workbook against the parsed source and prints a
+`source` vs. `workbook` table with an `OK` / `MISMATCH` flag per field (`units`, `vacant`,
+`rent_total`, `other_total`, `sqft_total`) plus the floor-plan count; it exits non-zero on
+any mismatch. Also cross-check against the source's own footer totals when present.
+In the workbook: OneLineRR Check row all TRUE / Diff row all 0. Spot-check vacant and any
+placeholder rows. Confirm every unit type resolved (no `#N/A` in `D–I`), which means every
+source unit type has a matching floor-plan table row.
 
 ## Note on scope
 Only the rent-roll surface is templated here (OneLineRR + its `HVP RR` source tab).
