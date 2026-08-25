@@ -304,6 +304,19 @@ def populate(source, out, cfg=CONFIG, template=TEMPLATE):
         s = set_text(s, "H%d" % r, fp.get("renovated", "No"))
         s = set_text(s, "I%d" % r, fp.get("reno_type", "Classic"))
 
+    # Placeholder market rent (all deals): when a unit has no market rent, fill
+    # col N with the max in-place rent (Contract Rent = rent + subsidy) of the
+    # same floor plan. Deals that supply a real market rent keep their values;
+    # only blanks are imputed. Disable with cfg['MARKET_PLACEHOLDER']=False.
+    use_ph = cfg.get("MARKET_PLACEHOLDER", True)
+    inplace_max = {}
+    if use_ph:
+        for u in units:
+            ip = (u.get("rent") or 0) + (u.get("subsidy") or 0)
+            if u.get("unittype") and ip > 0:
+                inplace_max[u["unittype"]] = max(inplace_max.get(u["unittype"], 0), ip)
+    n_placeholder = 0
+
     # data rows (99..)
     vac = set(t.strip().lower() for t in cfg["VACANT_TOKENS"])
     for i, u in enumerate(units):
@@ -315,6 +328,10 @@ def populate(source, out, cfg=CONFIG, template=TEMPLATE):
         if u["tenant"] is not None:            s = set_text(s, "M%d" % r, u["tenant"])
         if cfg["COLMAP"]["market"] and isinstance(u["market"], (int, float)):
             s = set_num(s, "N%d" % r, u["market"])
+        elif use_ph:
+            ph = inplace_max.get(u.get("unittype"))
+            if isinstance(ph, (int, float)) and ph > 0:
+                s = set_num(s, "N%d" % r, ph); n_placeholder += 1
         if isinstance(u["lease_from"], (date, datetime)): s = set_date(s, "Q%d" % r, u["lease_from"])
         if isinstance(u["lease_to"], (date, datetime)):   s = set_date(s, "R%d" % r, u["lease_to"])
         if cfg["COLMAP"]["movein"] and isinstance(u["movein"], (date, datetime)):
@@ -335,7 +352,9 @@ def populate(source, out, cfg=CONFIG, template=TEMPLATE):
             zo.writestr(it, sub.get(it.filename, zin.read(it.filename)))
 
     # reconcile source vs what was written back to the workbook
-    return verify_written(out, units, cfg, len(fps))
+    rep = verify_written(out, units, cfg, len(fps))
+    rep["market_placeholders"] = n_placeholder
+    return rep
 
 
 def verify_written(out, units, cfg, floor_plans=None):
@@ -383,6 +402,9 @@ def main(argv=None):
     print("Wrote", a.out)
     print("  units       ", rep["units"])
     print("  floor_plans ", rep["floor_plans"])
+    if rep.get("market_placeholders"):
+        print("  market rent  %d placeholder(s) = max in-place rent of same floor plan"
+              % rep["market_placeholders"])
     print("  %-14s %14s %14s  %s" % ("check", "source", "workbook", "match"))
     for k, (src, wb) in rep["checks"].items():
         fmt = lambda x: "{:,.2f}".format(x) if isinstance(x, float) else str(x)

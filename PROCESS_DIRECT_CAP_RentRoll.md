@@ -41,7 +41,7 @@ than SRCT's base `UW_Template_base.xlsx`: data rows start at row 99, property na
 | Unit Type | K | Unit Type | verbatim; must match a floor-plan table row |
 | Unit Sq Ft | L | Sqft | number |
 | Resident/Tenant | M | Tenant | vacant units read "Vacant" → drives Occ/Vac formula |
-| Market Rent | N | *(blank)* | **left blank by default** — see decision below |
+| Market Rent | N | market col, else placeholder | if the source has no market rent, N is imputed = max in-place rent of the same floor plan (see Imputation rules) |
 | Rent | AA | Rent | feeds `O` Contract Rent `=SUM(AA:AB)` |
 | Other Income | AD | Monthly Charges | feeds `T` Other Income `=SUM(AD:AJ)` |
 | Lease Start | Q | Lease From | date |
@@ -52,10 +52,19 @@ than SRCT's base `UW_Template_base.xlsx`: data rows start at row 99, property na
 Derived by template formula (do not write): `A` Property, `B` counter, `C` Occupancy,
 `D–I` Floorplan/Bd/Ba/Affordable/Renovated/Reno Type, `O/T/U/V/W` roll-up sums.
 
+## Imputation rules (all deals)
+- **Placeholder market rent.** When a unit has no market rent in the source, col N is
+  filled with the **max in-place rent (Contract Rent = Rent + Subsidy) of the same floor
+  plan**, applied to every unit of that floor plan. Units whose floor plan has no positive
+  in-place rent (e.g. an on-site Office at $0) are left blank. Deals that supply a real
+  market rent keep it; only blanks are imputed. These are placeholders — the engine reports
+  the count on every run. Disable per deal with `MARKET_PLACEHOLDER=False`.
+
 ## Standing decisions (Hudson View Park calibration)
-1. **Market Rent (col N): left blank.** The export carries two disagreeing figures —
-   `Market Rent` and `Computed Market Rent` (amenity-loaded). Choose one before any
-   loss-to-lease work. *(Pending client instruction.)*
+1. **Market Rent (col N).** The HVP export carries two figures — `Market Rent` and
+   `Computed Market Rent` (amenity-loaded); pick one to map before any loss-to-lease work.
+   Until one is mapped, the all-deals placeholder rule fills N with the max in-place rent
+   of each floor plan. *(Column choice pending client instruction.)*
 2. **Rent → col AA** (Contract Rent = Rent + Subsidy).
 3. **Monthly Charges → col AD** (Other Income).
 4. **Subsidy / Move-in / Move-out: blank** (absent from the export).
