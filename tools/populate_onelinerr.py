@@ -215,7 +215,10 @@ def parse_itemized(path, cfg):
         is_comm = bool(names & comm_names)
         is_nonrev = (not bl["utype"]) and rent == 0 and subsidy == 0
         lf, lt = _split_lease(bl["lease"])
-        rec = dict(unit=bl["unit"], unittype=bl["utype"], sqft=bl["sqft"],
+        utype = bl["utype"]
+        if utype is None and it.get("BLANK_TYPE_AS_UNIT"):
+            utype = bl["unit"]           # e.g. the on-site "Office" unit
+        rec = dict(unit=bl["unit"], unittype=utype, sqft=bl["sqft"],
                    tenant=_clean_name(bl["name"]), market=None,
                    rent=rent or None, subsidy=subsidy or None, other=other or None,
                    lease_from=lf, lease_to=lt, _bdba=None)
