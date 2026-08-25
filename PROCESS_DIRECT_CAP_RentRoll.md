@@ -95,6 +95,20 @@ In the workbook: OneLineRR Check row all TRUE / Diff row all 0. Spot-check vacan
 placeholder rows. Confirm every unit type resolved (no `#N/A` in `D–I`), which means every
 source unit type has a matching floor-plan table row.
 
+## Source formats
+- **Flat** (one row per unit): the default `CONFIG` / `parse_source` path.
+- **Itemized** (one unit block spanning several charge rows ending in `Net:`): set
+  `FORMAT="itemized"` and an `ITEMIZED` block (charge-column letters, header text, and the
+  Rent / Subsidy / Commercial charge-name buckets). Charges bucket to Rent (AA), Subsidy
+  (AB → e.g. Section 8), and Other Income (AD = everything else residential). Commercial
+  units (by charge name) are excluded; `EXCLUDE_NONREV=True` also drops $0 non-revenue
+  units (default keeps them). See `tools/deals/tradewinds.py` for a worked example.
+
+Per-deal configs live in `tools/deals/<name>.py` and are passed with `--config`. When the
+source has no BD/BA, the floor-plan table is written with labels sorted by average unit
+sqft and BD/BA left blank for the analyst/client to fill (a hard human gate — never
+inferred silently).
+
 ## Note on scope
 Only the rent-roll surface is templated here (OneLineRR + its `HVP RR` source tab).
 The other UW exhibits (P&Ls, Unit Mix, Comps, Tax, T12) are fed by other SRCT

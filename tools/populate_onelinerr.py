@@ -148,6 +148,96 @@ def parse_source(path, cfg):
         units.append(rec)
     return units
 
+def _split_lease(text):
+    """'08/18/25 - 08/31/26' -> (date, date). Returns (None, None) if unparseable."""
+    if not text or "-" not in str(text):
+        return None, None
+    a, b = [p.strip() for p in str(text).split("-", 1)]
+    def p(x):
+        for fmt in ("%m/%d/%y", "%m/%d/%Y", "%m-%d-%y", "%m-%d-%Y"):
+            try: return datetime.strptime(x, fmt).date()
+            except ValueError: pass
+        return None
+    return p(a), p(b)
+
+def parse_itemized(path, cfg):
+    """Parser for itemized rent rolls: one unit block spanning several charge
+    rows, each block ending in a 'Net:' row. Charges are bucketed by name into
+    rent / subsidy / other-income; commercial and non-revenue units are excluded.
+    Config keys under cfg['ITEMIZED']: COLS (unit/name/utype/sqft/lease/charge/
+    monthly column letters), HEADER_UNIT (the header cell text, e.g. 'Unit'),
+    RENT/SUBSIDY/COMMERCIAL charge-name lists; everything else counts as other
+    income."""
+    import openpyxl
+    from openpyxl.utils import column_index_from_string as ci
+    it = cfg["ITEMIZED"]
+    C = {k: ci(v) for k, v in it["COLS"].items()}
+    rent_names = set(n.lower() for n in it.get("RENT", ["Rent"]))
+    sub_names = set(n.lower() for n in it.get("SUBSIDY", []))
+    comm_names = set(n.lower() for n in it.get("COMMERCIAL", []))
+    wb = openpyxl.load_workbook(path, data_only=True)
+    ws = wb[cfg["SOURCE_SHEET"]] if cfg.get("SOURCE_SHEET") else wb[wb.sheetnames[0]]
+    # locate header row (col 'unit' cell == HEADER_UNIT)
+    hdr = None
+    for r in range(1, min(ws.max_row, 40) + 1):
+        v = ws.cell(r, C["unit"]).value
+        if v is not None and str(v).strip().lower() == it["HEADER_UNIT"].strip().lower():
+            hdr = r; break
+    if hdr is None:
+        raise RuntimeError("itemized header row ('%s') not found" % it["HEADER_UNIT"])
+    blocks, cur = [], None
+    for r in range(hdr + 1, ws.max_row + 1):
+        a = ws.cell(r, C["unit"]).value
+        if a is not None and str(a).strip() != "":
+            s = str(a).strip()
+            if s.lower().startswith(("# of units", "total", "subtotal")):
+                cur = None; continue
+            cur = dict(unit=s, name=ws.cell(r, C["name"]).value,
+                       utype=(str(ws.cell(r, C["utype"]).value).strip()
+                              if ws.cell(r, C["utype"]).value else None),
+                       sqft=ws.cell(r, C["sqft"]).value,
+                       lease=ws.cell(r, C["lease"]).value, charges=[])
+            blocks.append(cur)
+        h = ws.cell(r, C["charge"]).value
+        if h is not None and cur is not None:
+            hs = str(h).strip()
+            if hs and hs not in ("Net:", "Total:"):
+                mv = ws.cell(r, C["monthly"]).value
+                cur["charges"].append((hs, mv if isinstance(mv, (int, float)) else 0.0))
+    units, excluded = [], []
+    for bl in blocks:
+        names = set(n.lower() for n, _ in bl["charges"])
+        rent = sum(v for n, v in bl["charges"] if n.lower() in rent_names)
+        subsidy = sum(v for n, v in bl["charges"] if n.lower() in sub_names)
+        other = sum(v for n, v in bl["charges"]
+                    if n.lower() not in rent_names and n.lower() not in sub_names
+                    and n.lower() not in comm_names)
+        is_comm = bool(names & comm_names)
+        is_nonrev = (not bl["utype"]) and rent == 0 and subsidy == 0
+        lf, lt = _split_lease(bl["lease"])
+        rec = dict(unit=bl["unit"], unittype=bl["utype"], sqft=bl["sqft"],
+                   tenant=_clean_name(bl["name"]), market=None,
+                   rent=rent or None, subsidy=subsidy or None, other=other or None,
+                   lease_from=lf, lease_to=lt, _bdba=None)
+        if is_comm or (is_nonrev and it.get("EXCLUDE_NONREV", False)):
+            rec["_excluded"] = "commercial" if is_comm else "non-revenue"
+            excluded.append(rec)
+        else:
+            units.append(rec)
+    if excluded:
+        print("Excluded %d non-residential unit(s): %s" % (
+            len(excluded), ", ".join("%s (%s)" % (e["unit"], e["_excluded"]) for e in excluded)))
+    return units
+
+def _clean_name(raw):
+    """PM exports often store tenant as 'Last, First'. Keep as-is but trim a
+    leading comma (', Barnegat ...' -> 'Barnegat ...')."""
+    if raw is None: return None
+    s = str(raw).strip()
+    if s.startswith(","):
+        s = s.lstrip(", ").strip()
+    return s
+
 def build_floor_plans(units, cfg):
     if cfg["FLOOR_PLANS"]:
         return cfg["FLOOR_PLANS"]
@@ -165,12 +255,22 @@ def build_floor_plans(units, cfg):
             except: pass
         fps.append(dict(label=str(ut), unittype=str(ut), bd=bd, ba=ba,
                         affordable="No", renovated="No", reno_type="Classic"))
+    # order floor plans by average unit sqft (ascending)
+    sq = {}
+    for u in units:
+        if u.get("unittype") and isinstance(u.get("sqft"), (int, float)):
+            sq.setdefault(u["unittype"], []).append(u["sqft"])
+    def avg_sqft(fp):
+        vals = sq.get(fp["unittype"])
+        return sum(vals) / len(vals) if vals else 0
+    fps.sort(key=avg_sqft)
     return fps
 
 # --- write ------------------------------------------------------------------
 def populate(source, out, cfg=CONFIG, template=TEMPLATE):
     import zipfile
-    units = parse_source(source, cfg)
+    parser = parse_itemized if cfg.get("FORMAT") == "itemized" else parse_source
+    units = parser(source, cfg)
     fps = build_floor_plans(units, cfg)
     if len(units) > (DATA_ROWMAX - DATA_ROW0 + 1):
         raise RuntimeError("Source has %d units; template scaffold holds %d. Extend the "
@@ -206,7 +306,8 @@ def populate(source, out, cfg=CONFIG, template=TEMPLATE):
     for i, u in enumerate(units):
         r = DATA_ROW0 + i
         s = set_text(s, "J%d" % r, u["unit"])
-        s = set_text(s, "K%d" % r, u["unittype"])
+        if u["unittype"] is not None:
+            s = set_text(s, "K%d" % r, u["unittype"])
         if isinstance(u["sqft"], (int, float)): s = set_num(s, "L%d" % r, u["sqft"])
         if u["tenant"] is not None:            s = set_text(s, "M%d" % r, u["tenant"])
         if cfg["COLMAP"]["market"] and isinstance(u["market"], (int, float)):
@@ -218,6 +319,8 @@ def populate(source, out, cfg=CONFIG, template=TEMPLATE):
         if cfg["COLMAP"]["moveout"] and isinstance(u["moveout"], (date, datetime)):
             s = set_date(s, "S%d" % r, u["moveout"])
         if isinstance(u["rent"], (int, float)):  s = set_num(s, "AA%d" % r, u["rent"])
+        if isinstance(u.get("subsidy"), (int, float)) and u["subsidy"]:
+            s = set_num(s, "AB%d" % r, u["subsidy"])   # -> feeds O Contract Rent = AA+AB
         if isinstance(u["other"], (int, float)): s = set_num(s, "AD%d" % r, u["other"])
 
     wbx = wbx.replace('<calcPr calcId="191028" iterate="1"/>',
@@ -238,9 +341,9 @@ def verify_written(out, units, cfg, floor_plans=None):
     source?' confirmation gate. Returns a report with per-field ok flags."""
     import openpyxl
     ws = openpyxl.load_workbook(out, data_only=True)["OneLineRR"]
-    COL = dict(unit=10, unittype=11, sqft=12, tenant=13, rent=27, other=30)  # J,K,L,M,AA,AD
+    COL = dict(unit=10, unittype=11, sqft=12, tenant=13, rent=27, subsidy=28, other=30)  # J,K,L,M,AA,AB,AD
     def src_sum(key):
-        return round(sum(u[key] for u in units if isinstance(u[key], (int, float))), 2)
+        return round(sum(u.get(key) for u in units if isinstance(u.get(key), (int, float))), 2)
     def wb_sum(c):
         return round(sum(ws.cell(r, c).value for r in range(DATA_ROW0, DATA_ROW0 + len(units))
                          if isinstance(ws.cell(r, c).value, (int, float))), 2)
@@ -252,6 +355,7 @@ def verify_written(out, units, cfg, floor_plans=None):
                         sum(1 for r in range(DATA_ROW0, DATA_ROW0 + len(units))
                             if str(ws.cell(r, COL["tenant"]).value).strip().lower() in vac)),
         "rent_total":  (src_sum("rent"), wb_sum(COL["rent"])),
+        "subsidy_total": (src_sum("subsidy"), wb_sum(COL["subsidy"])),
         "other_total": (src_sum("other"), wb_sum(COL["other"])),
         "sqft_total":  (src_sum("sqft"), wb_sum(COL["sqft"])),
     }
@@ -264,8 +368,15 @@ def main(argv=None):
     ap.add_argument("source", help="raw rent-roll export (.xlsx/.xls)")
     ap.add_argument("--out", required=True, help="output UW Model path")
     ap.add_argument("--template", default=TEMPLATE)
+    ap.add_argument("--config", help="path to a per-deal .py file defining a CONFIG dict")
     a = ap.parse_args(argv)
-    rep = populate(a.source, a.out, CONFIG, a.template)
+    cfg = CONFIG
+    if a.config:
+        import importlib.util
+        spec = importlib.util.spec_from_file_location("deal_config", a.config)
+        mod = importlib.util.module_from_spec(spec); spec.loader.exec_module(mod)
+        cfg = mod.CONFIG
+    rep = populate(a.source, a.out, cfg, a.template)
     print("Wrote", a.out)
     print("  units       ", rep["units"])
     print("  floor_plans ", rep["floor_plans"])
