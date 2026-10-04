@@ -137,7 +137,7 @@ def main():
         return 2
     units = load(src)
     config = RollConfig(property_name=PROPERTY, as_of_date=AS_OF, uw_market_rents={})
-    build_exhibits(units, config, out)
+    build_exhibits(units, config, out, source_path=src, source_sheet="Report1")
 
     from rent_roll_processor.aggregate import is_occupied
     is_model = lambda u: (u.tenant_name or "").strip().lower() == "model"

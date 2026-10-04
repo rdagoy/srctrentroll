@@ -107,7 +107,7 @@ def main():
         return 2
     units = load(SRC)
     config = RollConfig(property_name=PROPERTY, as_of_date=AS_OF, uw_market_rents={})
-    build_exhibits(units, config, out)
+    build_exhibits(units, config, out, source_path=src, source_sheet="April")
 
     from rent_roll_processor.aggregate import is_occupied
     occ = sum(1 for u in units if is_occupied(u, config.model_occupied))

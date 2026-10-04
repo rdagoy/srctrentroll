@@ -121,7 +121,7 @@ def main():
         as_of_date=date(2026, 5, 22),
         uw_market_rents={},   # left blank per request -> LTL columns blank
     )
-    build_exhibits(units, config, OUT)
+    build_exhibits(units, config, OUT, source_path=SRC, source_sheet="Report1")
 
     from rent_roll_processor.aggregate import is_occupied
     occ = sum(1 for u in units if is_occupied(u, config.model_occupied))

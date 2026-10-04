@@ -76,8 +76,9 @@ The result is a list of normalized units + a `RollConfig`.
 
 ### Step 2 — Build exhibits *(deterministic)*
 `build_exhibits(units, config, out_path)` computes every summary and writes the
-styled 5-tab workbook (Unit Mix & RR Summary, Recent Leases, Unit Mix by
-Beds, Pres. Rent Roll, and OneLineRR). Same input → identical output, every time.
+styled workbook: the 5 exhibit tabs (Unit Mix & RR Summary, Recent Leases,
+Unit Mix by Beds, Pres. Rent Roll, OneLineRR) plus a **Source** tab (a verbatim
+paste of the source rent roll). Same input → identical output, every time.
 
 The **OneLineRR** tab is a live working sheet: a full one-line-per-unit dump of
 the source plus a yellow-highlighted **Checking** table that maps each unit
@@ -114,6 +115,7 @@ model units, large negative LTL, floor plans missing a UW market rent).
 | Other Income order | in the OneLineRR Other Income section, **pet-related charges are placed leftmost** (any line item whose name contains "pet"); other items keep their order. |
 | Verbatim charge-code columns | the OneLineRR renders **one detail column per source line item** for Other Income, Concessions, **and** Employee Discounts, using the **exact source charge code / name as the column header** (no renaming). Intakes pass `other_income_items` / `concession_items` / `emp_discount_items` (`{code: amount}`); a section with no per-code breakdown falls back to one aggregate column (`Concession` / `Employee Discount`). (#32) |
 | Unit-type ordering | summary rows and the OneLineRR Checking table sort by **bed count → bath count → unit SF** (SF is the basis when beds/baths are unknown). |
+| Source tab | a final **Source** tab (beside OneLineRR) carries a **verbatim paste of the source rent roll** — cell values, number formats, column widths and merged ranges — so the exhibits ship with an auditable copy of exactly what was processed. The intake passes `source_path` (and `source_sheet` when the source book has more than one sheet, so only the parsed sheet is pasted). Best-effort: skipped if the source is unreadable (e.g. a scanned-PDF source has nothing to paste). (#33) |
 | Employee discount | routed to the **Employee Discount** section (Pres. RR col X; OneLineRR "Employee Discounts"), not concession — either via a charge whose name contains "employee discount" or by the intake setting `emp_discount` / `emp_discount_items` directly (e.g. a Yardi `conempl` credit). It is *not* netted into in-place rent (netting is concession-only). |
 | Occupied, $0 rent | an **occupied** unit carrying $0 contract rent uses its **market rent as a placeholder** in-place rent (no concession). Vacant/non-revenue units are unaffected. Toggle `zero_rent_placeholder`. |
 | Exclude retail | retail / commercial (non-residential) units are dropped from every exhibit and total, so the output is the **residential** rent roll only. A unit is retail if the intake sets `is_retail=True` or its floor plan / unit type / designation / reno-type contains "retail"/"commercial". The whole unit is dropped, so **none of its charges ride along** — a retail unit's other income, concessions, and employee discounts are excluded too, not just its rent. Toggle `exclude_retail` (default True). |

@@ -792,8 +792,50 @@ def _build_onelinerr(wb, units, config):
 # ---------------------------------------------------------------------------
 # Public entry point
 # ---------------------------------------------------------------------------
-def build_exhibits(units: List[Unit], config: RollConfig, out_path: str) -> str:
-    """Build the 5-tab exhibits workbook and save it to ``out_path``."""
+def _build_source(wb, source_path, source_sheet=None):
+    """Paste the raw source rent roll verbatim into a 'Source' tab.
+
+    Copies cell values (cached values for any formulas), number formats, column
+    widths and merged-cell ranges from the source sheet the intake parsed, so
+    the exhibits carry an auditable copy of exactly what was processed.  If the
+    source has several sheets, ``source_sheet`` picks the one used (else the
+    first).  Best-effort: any failure is swallowed so it never breaks the build.
+    """
+    try:
+        src = openpyxl.load_workbook(source_path, data_only=True)
+    except Exception as exc:                       # noqa: BLE001
+        print(f"  [Source tab skipped: could not read source ({exc})]")
+        return None
+    sws = (src[source_sheet] if source_sheet and source_sheet in src.sheetnames
+           else src[src.sheetnames[0]])
+    ws = wb.create_sheet("Source")
+    ws.sheet_view.showGridLines = True
+    for row in sws.iter_rows():
+        for cell in row:
+            if cell.value is None:
+                continue
+            nc = ws.cell(cell.row, cell.column, cell.value)
+            fmt = cell.number_format
+            if fmt and fmt != "General":
+                nc.number_format = fmt
+    for col, dim in sws.column_dimensions.items():
+        if dim.width:
+            ws.column_dimensions[col].width = dim.width
+    for mc in list(sws.merged_cells.ranges):
+        try:
+            ws.merge_cells(str(mc))
+        except Exception:                          # noqa: BLE001
+            pass
+    return ws
+
+
+def build_exhibits(units: List[Unit], config: RollConfig, out_path: str,
+                   source_path: str = None, source_sheet: str = None) -> str:
+    """Build the exhibits workbook and save it to ``out_path``.
+
+    If ``source_path`` is given, a final 'Source' tab (beside OneLineRR) carries
+    a verbatim paste of the source rent roll (``source_sheet`` picks the sheet
+    the intake parsed, when the source has more than one)."""
     if not units:
         raise ValueError("No units to process.")
 
@@ -822,6 +864,8 @@ def build_exhibits(units: List[Unit], config: RollConfig, out_path: str) -> str:
     _build_bed_mix(wb, units, config, totals)
     _build_pres_rent_roll(wb, units, config, totals)
     _build_onelinerr(wb, units, config)
+    if source_path:
+        _build_source(wb, source_path, source_sheet)
 
     wb.save(out_path)
     return out_path

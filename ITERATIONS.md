@@ -324,6 +324,18 @@ count against the source's own total** (e.g. "Total Rentable Units").
       `conpest`, `contfinc`, `coninsu`, `congarg`, `conliab`; Employee Discounts
       column is `conempl`. Applied to this deal and all deals going forward.
 
+33. **"Source" tab — verbatim paste of the source rent roll** — the exhibits
+    workbook now ends with a **Source** tab (beside OneLineRR) that pastes the
+    raw source: cell values (cached values for formulas), number formats, column
+    widths and merged-cell ranges, so every delivered workbook carries an
+    auditable copy of exactly what was processed. `build_exhibits` gained
+    `source_path` / `source_sheet` params; each intake passes the file it read
+    (and its sheet, so multi-sheet books like the Eagles/Lyndon portfolio paste
+    only the parsed sheet). Best-effort: if the source can't be read as a
+    workbook (e.g. Colonial Pointe's scanned PDF) the tab is skipped with a
+    note, never failing the build. *(workbook.py `_build_source`, wired into
+    `build_exhibits`; all xlsx intakes pass `source_path`)*
+
 ---
 
 ## Open / future tuning items
